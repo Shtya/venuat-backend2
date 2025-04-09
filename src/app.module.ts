@@ -39,6 +39,7 @@ import { VenueRatingModule } from './venue_ratings/venue_ratings.module';
 import { ContactUsModule } from './contact-us/contact-us.module';
 import { LettersModule } from './letters/letters.module';
 import { ReportsModule } from './reports/reports.module';
+import { VenuePeriodModule } from './venue-period/venue-period.module';
 
 
 
@@ -104,6 +105,7 @@ import { ReportsModule } from './reports/reports.module';
     ContactUsModule,
     LettersModule,
     ReportsModule,
+    VenuePeriodModule,
   ],
   controllers: [ApiController],
   providers: [ LoggingValidationPipe , QueryFailedErrorFilter ],

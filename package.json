@@ -42,6 +42,7 @@
     "chokidar": "^3.6.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
     "firebase-admin": "^13.2.0",
     "git-filter-repo": "^0.0.30",
@@ -99,4 +100,3 @@
     "testEnvironment": "node"
   }
 }
-
