@@ -140,7 +140,7 @@ async create(venueId: number, dto: CreateVenuePeriodDto[]) {
     for (let i = 0; i <= daysCount; i++) {
       const date = addDays(fromDate, i);
       const dayName = format(date, 'EEEE');         // مثل Friday
-      const dateFormatted = format(date, 'd/M');    // مثل 10/4
+      const dateFormatted = format(date, 'dd/MM/yyyy');    // مثل 10/4
   
       const key = `${dayName} : ${dateFormatted} `;  // النهائي: 10/4 - Friday
   
@@ -157,7 +157,8 @@ async create(venueId: number, dto: CreateVenuePeriodDto[]) {
             from: formatTime(p.from),
             to: formatTime(p.to),
             price: p.price,
-            id: p.id
+            id: p.id ,
+            booked_dates: p.booked_dates,
           };
         });
   

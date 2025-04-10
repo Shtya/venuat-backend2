@@ -3,6 +3,7 @@
     "not_found_for_venue" :"equipment with ID {serviceId} not found for venue with ID {venueId}",
     "updated" : "updated successfully"
   },
+  "period_already_reserved": "The selected period on {date} is already reserved.",
   "updated" : "updated successfully",
   "otp_valid": "OTP is valid.",
   "price_must_be_Number": "The price must be a valid number.",

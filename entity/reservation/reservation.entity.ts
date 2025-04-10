@@ -35,11 +35,14 @@ export class Reservation {
   @Column({ type: 'date' })
   check_out: Date;
 
-  @Column({ type: 'time' })
-  from_time: string;
 
-  @Column({ type: 'time' })
-  to_time: string;
+  @Column({ type: 'jsonb' , nullable : true })
+  periods: Record<string, number>;
+
+  @Column('jsonb', { nullable: true })
+  period_details: Record<string, any> | null;
+
+
 
   @Column('decimal')
   total_price: number;

@@ -11,14 +11,20 @@ export class VenuePeriod {
   venue: Venue;
 
   @Column()
-  day: string; // ex: 'sunday', 'monday'...
+  day: string; 
 
   @Column()
-  from: string; // format: 'HH:MM'
+  from: string; 
 
   @Column()
-  to: string; // format: 'HH:MM'
+  to: string; 
 
   @Column('double precision')
   price: number;
+
+  @Column("text", { array: true, default: () => 'ARRAY[]::text[]' })
+  booked_dates: string[]; 
+
+  
+
 }
