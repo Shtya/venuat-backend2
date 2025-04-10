@@ -39,7 +39,7 @@ export class QueryFailedErrorFilter implements ExceptionFilter {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         message:  this.i18n.t("events.unexpected_database_error") ,
         error: 'Database Error',
-        details: exception.driverError?.detail,
+        details: exception?.message,
       });
     }
   }

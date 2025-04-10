@@ -13,6 +13,206 @@ export class ReportsService {
     @InjectRepository(Venue) private venueRepo: Repository<Venue>
   ) {}
 
+
+  // For Vendor 
+  async getVendorReservationCityReport(dto: any) {
+    const { from, to, userId, limit = 20, page = 1 } = dto;
+  
+    const query = this.reservationRepo.createQueryBuilder('reservation')
+      .leftJoin('reservation.venue', 'venue') 
+      .leftJoin('venue.property', 'property') 
+      .leftJoin('reservation.user', 'vendor') 
+      .leftJoin('property.city', 'city') 
+      .select('city.name', 'city') 
+      .addSelect('COUNT(reservation.id)', 'totalReservations') 
+      .addSelect('SUM(reservation.total_price)', 'totalRevenue') 
+      .groupBy('city.name'); 
+
+
+      
+      
+    if (userId) query.andWhere('vendor.id = :userId', { userId });
+  
+    if (from) query.andWhere('reservation.check_in >= :from', { from });
+    if (to) query.andWhere('reservation.check_in <= :to', { to });
+  
+    // Execute the query and get the results
+    const fullData = await query.getRawMany();
+  
+    // Pagination logic
+    const totalCount = fullData.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const paginatedData = fullData.slice((page - 1) * limit, page * limit);
+  
+    return {
+      totalCount,
+      totalPages,
+      currentPage: +page,
+      limit: +limit,
+      data: paginatedData,
+    };
+  }
+
+
+  async getVendorReservationOccasionReport(dto: any) {
+    const {from , to, userId, limit = 20, page = 1 } = dto;
+  
+    const query = this.reservationRepo.createQueryBuilder('reservation')
+      .leftJoin('reservation.venue', 'venue') 
+      .leftJoin('venue.property', 'property') 
+      .leftJoin('reservation.user', 'vendor') 
+      .leftJoin('venue.occasion', 'occasion') // Join with occasion table
+      .select('occasion.name', 'occasion') 
+      .addSelect('COUNT(reservation.id)', 'totalReservations') 
+      .addSelect('SUM(reservation.total_price)', 'totalRevenue') 
+      .groupBy('occasion.name'); 
+  
+    // Filter by vendor's user ID
+    if (userId) {
+      query.andWhere('vendor.id = :userId', { userId });
+    }
+    if (from) query.andWhere('reservation.check_in >= :from', { from });
+    if (to) query.andWhere('reservation.check_in <= :to', { to });
+  
+    const fullData = await query.getRawMany();
+  
+    const totalCount = fullData.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const paginatedData = fullData.slice((page - 1) * limit, page * limit);
+  
+    return {
+      totalCount,
+      totalPages,
+      currentPage: +page,
+      limit: +limit,
+      data: paginatedData,
+    };
+  }
+  
+
+
+  async getVendorReservationVenueReport(dto: any) {
+    const {from , to, userId, limit = 20, page = 1 } = dto;
+
+  
+    const query = this.reservationRepo.createQueryBuilder('reservation')
+      .leftJoin('reservation.venue', 'venue') 
+      .leftJoin('venue.property', 'property') 
+      .leftJoin('reservation.user', 'vendor') 
+      .select('venue.id', 'venueId')
+      .addSelect('venue.name', 'venueName') 
+      .addSelect('COUNT(reservation.id)', 'totalReservations') 
+      .addSelect('SUM(reservation.total_price)', 'totalRevenue') 
+      .groupBy('venue.id') 
+      .addGroupBy('venue.name'); 
+  
+    // Filter by vendor's user ID
+    if (userId) {
+      query.andWhere('vendor.id = :userId', { userId });
+    }
+    if (from) query.andWhere('reservation.check_in >= :from', { from });
+    if (to) query.andWhere('reservation.check_in <= :to', { to });
+  
+    const fullData = await query.getRawMany();
+  
+    const totalCount = fullData.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const paginatedData = fullData.slice((page - 1) * limit, page * limit);
+  
+    return {
+      totalCount,
+      totalPages,
+      currentPage: +page,
+      limit: +limit,
+      data: paginatedData,
+    };
+  }
+
+
+
+  async getVendorReservationPerDayReport(dto: any) {
+    const {from , to, userId, limit = 20, page = 1 } = dto;
+
+  
+    const query = this.reservationRepo.createQueryBuilder('reservation')
+      .leftJoin('reservation.venue', 'venue') 
+      .leftJoin('venue.property', 'property') 
+      .leftJoin('reservation.user', 'vendor') 
+      .select("TO_CHAR(reservation.check_in, 'YYYY-MM-DD')", 'date')
+      .addSelect('COUNT(reservation.id)', 'amount') 
+      .addSelect('SUM(reservation.total_price)', 'total') 
+      .groupBy('date'); 
+  
+    // Filter by vendor's user ID
+    if (userId) {
+      query.andWhere('vendor.id = :userId', { userId });
+    }
+    if (from) query.andWhere('reservation.check_in >= :from', { from });
+    if (to) query.andWhere('reservation.check_in <= :to', { to });
+  
+    const fullData = await query.getRawMany();
+  
+    const totalCount = fullData.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const paginatedData = fullData.slice((page - 1) * limit, page * limit);
+  
+    return {
+      totalCount,
+      totalPages,
+      currentPage: +page,
+      limit: +limit,
+      data: paginatedData,
+    };
+  }
+  
+
+
+
+  async getVendorReservationPerMonthReport(dto: any) {
+    const {from , to, userId, limit = 20, page = 1 } = dto;
+
+  
+    const query = this.reservationRepo.createQueryBuilder('reservation')
+      .leftJoin('reservation.venue', 'venue') 
+      .leftJoin('venue.property', 'property') 
+      .leftJoin('reservation.user', 'vendor') 
+      // .select('EXTRACT(MONTH FROM reservation.check_in)', 'month') // Extract the month from check_in date
+      .select("TO_CHAR(reservation.check_in, 'FMMonth YYYY')", 'month')  // استخدام FM لعدم إضافة المسافات
+      .addSelect('COUNT(reservation.id)', 'amount') 
+      .addSelect('SUM(reservation.total_price)', 'total') 
+      .groupBy('month')
+      .orderBy("MIN(reservation.check_in)", 'ASC');
+
+
+    if (userId) {
+      query.andWhere('vendor.id = :userId', { userId });
+    }
+
+    if (from) query.andWhere('reservation.check_in >= :from', { from });
+    if (to) query.andWhere('reservation.check_in <= :to', { to });
+  
+    const fullData = await query.getRawMany();
+  
+    const totalCount = fullData.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const paginatedData = fullData.slice((page - 1) * limit, page * limit);
+  
+    return {
+      totalCount,
+      totalPages,
+      currentPage: +page,
+      limit: +limit,
+      data: paginatedData,
+    };
+  }
+  
+  
+  
+  
+  
+
+  // For Admin 
+
   
 
   async getReservationCityReport(dto: any) {
@@ -114,8 +314,6 @@ export class ReportsService {
     };
   }
   
-  
-  
   async getReservationVenueReport(dto: any) {
     const { from, to, venueId, page = 1, limit = 20 } = dto;
   
@@ -181,7 +379,6 @@ export class ReportsService {
   
 
   // VENUE REPORTS
-
   async getVenueCityReport(dto: any) {
     const { from, to, cityId, limit = 20, page = 1 } = dto;
 
