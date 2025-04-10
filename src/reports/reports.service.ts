@@ -1,7 +1,7 @@
 // reports.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { GroupByEnum, ReservationFilterEnum, ReservationReportDto, VenueFilterEnum } from 'dto/venue/reservaation-report.dto';
+import { ReservationReportDto } from 'dto/venue/reservaation-report.dto';
 import { Reservation } from 'entity/reservation/reservation.entity';
 import { Venue } from 'entity/venue/venue.entity';
 import { Repository } from 'typeorm';
@@ -76,6 +76,45 @@ export class ReportsService {
       data: paginatedData,
     };
   }
+
+  async getReservationOccasionReport(dto: any) {
+    const { from, to, occasionId, limit = 20, page = 1 } = dto;
+  
+    // Create the query builder with reservation and occasion relations
+    const query = this.reservationRepo.createQueryBuilder('reservation')
+      .leftJoin('reservation.venue', 'venue')  // Join with the venue
+      .leftJoin('venue.occasion', 'occasion')
+      .select('occasion.id', 'id')
+      .addSelect('occasion.name', 'occasionType')
+      .addSelect('COUNT(reservation.id)', 'reservationCount')  // Count the number of reservations for each occasion
+      .addSelect('SUM(reservation.total_price)', 'totalRevenue')  // Calculate the total revenue for the occasion
+      .groupBy('occasion.id, occasion.name');
+  
+    // Apply filters for the date range and occasionId
+    if (from) query.andWhere('reservation.check_in >= :from', { from });
+    if (to) query.andWhere('reservation.check_in <= :to', { to });
+    if (occasionId) query.andWhere('occasion.id = :occasionId', { occasionId });
+  
+    // Execute the query to get the full data
+    const fullData = await query.getRawMany();
+    
+    // Handle pagination
+    const totalCount = fullData.length;
+    const totalPages = Math.ceil(totalCount / limit);
+  
+    const paginatedData = fullData.slice((page - 1) * limit, page * limit);
+  
+    // Return the paginated data with metadata
+    return {
+      totalCount,
+      totalPages,
+      currentPage: +page,
+      limit: +limit,
+      data: paginatedData,
+    };
+  }
+  
+  
   
   async getReservationVenueReport(dto: any) {
     const { from, to, venueId, page = 1, limit = 20 } = dto;
@@ -215,46 +254,3 @@ export class ReportsService {
     };
   }
 }
-
-/* 
-
-Reservation
-Group by City , Event name , Vendor
-Filter by  City , Event name , Vendor + (from date , to date )
-data {
-  city name , 
-  total reservation , 
-  value reservation 
-}
-
-  !Per Day
-  data [{
-      date : 1-1-2025
-      total : 300
-      amount : 500 
-    }]
-
-  !per month
-  data[{
-      month : "March"
-      total : 300
-      amount : 500 
-    }],
-
-
-
-
-
-
-Venues 
-Group by City , Event name , Vendor
-Filter by  City , Event name , Vendor 
-
-data {
-  city name , 
-  Venue count 
-}
-
-
-
-*/

@@ -18,6 +18,12 @@ export class ReportsController {
     return this.reportsService.getReservationVendorReport(dto);
   }
 
+
+  @Get('reservation/occasion')
+  getReservationByOccasion(@Query() dto: ReservationReportDto) {
+    return this.reportsService.getReservationOccasionReport(dto);
+  }
+
   @Get('reservation/venue')
   getReservationByVenue(@Query() dto: ReservationReportDto) {
     return this.reportsService.getReservationVenueReport(dto);
