@@ -68,44 +68,102 @@ async create(venueId: number, dto: CreateVenuePeriodDto[]) {
     return this.periodRepo.find({ where: { venue: { id: venueId } } });
   }
 
-  async update(id: number, dto: UpdateVenuePeriodDto) {
-    const period = await this.periodRepo.findOne({
-      where: { id },
-      relations: ['venue'],
-    });
+  // async update(id: number, dto: UpdateVenuePeriodDto) {
+  //   const period = await this.periodRepo.findOne({
+  //     where: { id },
+  //     relations: ['venue'],
+  //   });
   
-    if (!period) throw new NotFoundException('Period not found');
+  //   if (!period) throw new NotFoundException('Period not found');
   
-    // use updated values if provided, otherwise use existing values
-    const day = dto.day ?? period.day;
-    const from = dto.from ?? period.from;
-    const to = dto.to ?? period.to;
+  //   // use updated values if provided, otherwise use existing values
+  //   const day = dto.day ?? period.day;
+  //   const from = dto.from ?? period.from;
+  //   const to = dto.to ?? period.to;
   
-    // Fetch other periods on the same day for the same venue
-    const existingPeriods = await this.periodRepo.find({
-      where: {
-        venue: { id: period.venue.id },
-        day: day,
-      },
-    });
+  //   // Fetch other periods on the same day for the same venue
+  //   const existingPeriods = await this.periodRepo.find({
+  //     where: {
+  //       venue: { id: period.venue.id },
+  //       day: day,
+  //     },
+  //   });
   
-    const newFrom = this.timeStringToMinutes(from);
-    const newTo = this.timeStringToMinutes(to);
+  //   const newFrom = this.timeStringToMinutes(from);
+  //   const newTo = this.timeStringToMinutes(to);
   
-    const isOverlapping = existingPeriods.some(p => {
-      if (p.id === id) return false; // skip self
-      const existingFrom = this.timeStringToMinutes(p.from);
-      const existingTo = this.timeStringToMinutes(p.to);
-      return newFrom < existingTo && newTo > existingFrom;
-    });
+  //   const isOverlapping = existingPeriods.some(p => {
+  //     if (p.id === id) return false; // skip self
+  //     const existingFrom = this.timeStringToMinutes(p.from);
+  //     const existingTo = this.timeStringToMinutes(p.to);
+  //     return newFrom < existingTo && newTo > existingFrom;
+  //   });
   
-    if (isOverlapping) {
-      throw new BadRequestException('Updated time period overlaps with an existing period.');
+  //   if (isOverlapping) {
+  //     throw new BadRequestException('Updated time period overlaps with an existing period.');
+  //   }
+  
+  //   Object.assign(period, dto);
+  //   return this.periodRepo.save(period);
+  // }
+
+  async updateMultipleVenuePeriods(
+    venueId: number,
+    dtoList: any,
+  ) {
+    const updatedPeriods = [];
+  
+    for (const dto of dtoList) {
+      const period = await this.periodRepo.findOne({
+        where: {
+          id: dto.periodId,
+          venue: { id: venueId },
+        },
+        relations: ['venue'],
+      });
+  
+      if (!period) {
+        throw new NotFoundException(
+          `Period with id ${dto.periodId} not found for venue ${venueId}`,
+        );
+      }
+  
+      const day = dto.day ?? period.day;
+      const from = dto.from ?? period.from;
+      const to = dto.to ?? period.to;
+      const price = dto.price ?? period.price;
+  
+      const newFrom = this.timeStringToMinutes(from);
+      const newTo = this.timeStringToMinutes(to);
+  
+      const otherPeriods = await this.periodRepo.find({
+        where: {
+          venue: { id: venueId },
+          day,
+        },
+      });
+  
+      const isOverlapping = otherPeriods.some(p => {
+        if (p.id === period.id) return false;
+        const existingFrom = this.timeStringToMinutes(p.from);
+        const existingTo = this.timeStringToMinutes(p.to);
+        return newFrom < existingTo && newTo > existingFrom;
+      });
+  
+      if (isOverlapping) {
+        throw new BadRequestException(
+          `Period ${dto.periodId} overlaps with another period on ${day}`,
+        );
+      }
+  
+      Object.assign(period, { day, from, to, price });
+      updatedPeriods.push(period);
     }
   
-    Object.assign(period, dto);
-    return this.periodRepo.save(period);
+    return this.periodRepo.save(updatedPeriods);
   }
+  
+  
   
 
   async delete(id: number) {

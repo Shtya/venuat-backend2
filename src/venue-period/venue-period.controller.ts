@@ -26,10 +26,12 @@ export class VenuePeriodController {
     return this.service.findPeriodsInRange(venueId, from, to);
   }
 
-  @Put(':id')
-  update(@Param('id') id: number, @Body() dto: UpdateVenuePeriodDto) {
-    return this.service.update(id, dto);
+
+  @Put('')
+  update( @Param('venueId') venueId: number, @Body() dto: any, ) {
+    return this.service.updateMultipleVenuePeriods(venueId, dto);
   }
+
 
   @Delete(':id')
   remove(@Param('id') id: number) {

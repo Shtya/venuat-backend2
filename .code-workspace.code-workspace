@@ -1,13 +1,26 @@
 {
   "folders": [
     {
+      "name": "Venuat Backend",
       "path": "."
     },
     {
+      "name": "Venuat Website",
+      "path": "../Venuat Website"
+    },
+    {
+      "name": "m5zoon",
       "path": "C:/xampp/htdocs/m5zoon"
     },
     {
-      "path": "../Venuat Website"
+      "name": "HTML Ecom Station",
+      "path": "../../M5zoon/HTML Ecom Station"
+    },
+    {
+      "path": "../../M5zoon/M5zoon/website/M5zoon Website NextJS"
     }
-  ]
+  ],
+  "settings": {
+    "liveServer.settings.multiRootWorkspaceName": "HTML Ecom Station"
+  }
 }

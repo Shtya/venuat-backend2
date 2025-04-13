@@ -40,6 +40,7 @@ import { ContactUsModule } from './contact-us/contact-us.module';
 import { LettersModule } from './letters/letters.module';
 import { ReportsModule } from './reports/reports.module';
 import { VenuePeriodModule } from './venue-period/venue-period.module';
+import { CommunicationModule } from './communication/communication.module';
 
 
 
@@ -106,6 +107,7 @@ import { VenuePeriodModule } from './venue-period/venue-period.module';
     LettersModule,
     ReportsModule,
     VenuePeriodModule,
+    CommunicationModule,
   ],
   controllers: [ApiController],
   providers: [ LoggingValidationPipe , QueryFailedErrorFilter ],
