@@ -13,8 +13,22 @@ export class CommunicationController {
   }
 
   @Get()
-  findAll(@Query('type') type?: any, @Query('venueId') venueId?: string) {
-    return this.service.findFiltered(type , venueId ? +venueId : undefined);
+  findAll(
+    @Query('type') type?: any , 
+    @Query('fromId') fromId ?:string, @Query('toId') toId?: string ) {
+    return this.service.findFiltered(type , fromId , toId );
+  }
+
+
+  @Get(':id')
+  async getOne(@Param('id') id: number) {
+    return this.service.findOne(id);
+  }
+
+  
+  @Get('reservation/:id')
+  async getOneByReservationId(@Param('id') id: number) {
+    return this.service.findOneByReservationId(id);
   }
 
 

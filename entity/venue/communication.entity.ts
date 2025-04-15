@@ -1,24 +1,22 @@
 // src/communication/entities/communication.entity.ts
 import { Reservation } from 'entity/reservation/reservation.entity';
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Venue } from './venue.entity';
+import { User } from 'entity/user/user.entity';
 
 @Entity()
 export class Communication {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  from: string; // email
+  @ManyToOne(() => User)
+  from: User;
 
-  @Column()
-  to: string; // email
+  @ManyToOne(() => User)
+  to: User;
 
   @Column('text')
   reply: string;
-
-  @Column({ nullable: true })
-  flag: string; // venue name or other identifier
 
   @Column()
   type: 'reservation' | 'non_reservation' | 'venue_message';
@@ -29,42 +27,14 @@ export class Communication {
   @ManyToOne(() => Venue, { nullable: true })
   venue: Venue;
 
-  @Column({ type: 'jsonb', nullable: true })
-  reservationDetails?: any; 
   
   @Column({type: 'jsonb',default: [],})
   replies: {from: string;to: string;message: string;createdAt: string;}[];
+
+    @CreateDateColumn()
+    created_at: Date;
+  
+    @UpdateDateColumn()
+    updated_at: Date;
 }
-
-
-
-// import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-
-// @Entity()
-// export class Communication {
-//   @PrimaryGeneratedColumn()
-//   id: number;
-
-//   @Column()
-//   sender_id: number;
-
-//   @Column()
-//   receiver_id: number;
-
-//   @Column()
-//   message: string;
-
-//   @Column()
-//   sender_type: string;
-
-//   @Column()
-//   receiver_type: string;
-
-//   @CreateDateColumn()
-//   created_at: Date;
-
-//   @UpdateDateColumn()
-//   updated_at: Date;
-// }
-
 
