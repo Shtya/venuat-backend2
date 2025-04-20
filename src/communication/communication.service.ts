@@ -19,38 +19,6 @@ export class CommunicationService {
     private reservationRepo: Repository<Reservation>
   ) {}
 
-  // async create(dto: CreateCommunicationDto) {
-  //   const communication = this.repo.create({
-  //     reply: dto.msg,
-  //     type: dto.type,
-  //   });
-
-  //   communication.from = dto.fromId as any;
-  //   if (dto.toId) communication.to = dto.toId as any;
-
-  //   if (dto.type === 'reservation' && dto.reservationId) {
-  //     const reservation = await this.reservationRepo.findOne({
-  //       where: { id: dto.reservationId },
-  //       relations: ['venue', 'venue.property.vendor', 'user'],
-  //     });
-
-  //     if (!reservation) throw new NotFoundException('Reservation not found');
-
-  //     communication.venue = reservation.venue;
-  //     communication.to = reservation.venue.property.vendor.id as any;
-  //     communication.reservation = reservation;
-  //   }
-
-  //   if (dto.venueId && !communication.venue) {
-  //     const venue = await this.venueReop.findOne({ where: { id: dto.venueId }, relations: ['property.vendor'] });
-  //     communication.to = venue?.property?.vendor?.id as any;
-
-  //     communication.venue = dto.venueId as any;
-  //   }
-
-  //   return this.repo.save(communication);
-  // }
-
   async create(dto: CreateCommunicationDto) {
     // STEP 1: If it's a reservation-based message, check for existing communication
     if (dto.type === 'reservation' && dto.reservationId) {
@@ -83,6 +51,7 @@ export class CommunicationService {
           message: dto.msg,
           type: 'sender', // or 'receiver' based on context, or pass in DTO
           createdAt: new Date().toISOString(),
+          isRead: false, // 👈 mark as unread
         };
   
         existingCommunication.replies = [...(existingCommunication.replies || []) as any, replyEntry];
@@ -124,32 +93,54 @@ export class CommunicationService {
     return this.repo.save(communication);
   }
   
-
-  async findFiltered(type?: 'reservation' | 'non_reservation' | 'venue_message', fromId?: string, toId?: string, page = 1, limit = 10) {
+  async findFiltered(
+    type?: 'reservation' | 'non_reservation' | 'venue_message',
+    fromId?: string,
+    toId?: string,
+    page = 1,
+    limit = 10
+  ) {
     const where: any = {};
-
+  
     if (type) where.type = type;
     if (fromId) where.from = { id: +fromId };
     if (toId) where.to = { id: +toId };
-
+  
     const [fullData, totalCount] = await this.repo.findAndCount({
       where,
       relations: ['reservation', 'venue', 'from', 'to'],
-      order: { id: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
     });
-
+  
+    const currentUserId = toId ? +toId : fromId ? +fromId : null;
+  
+    const sortedData = fullData
+      .map(comm => {
+        const replies = comm.replies || [];
+        const unreadCount = replies.filter((reply: any) => {
+          return reply.to?.id === currentUserId && reply.isRead === false;
+        }).length;
+  
+        return {
+          ...comm,
+          unreadCount,
+        };
+      })
+      .sort((a, b) => {
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(); // DESC by updated_at
+      })
+      .slice((page - 1) * limit, page * limit);
+  
     const totalPages = Math.ceil(totalCount / limit);
-
+  
     return {
       totalCount,
       totalPages,
       currentPage: +page,
       limit: +limit,
-      data: fullData,
+      data: sortedData,
     };
   }
+  
 
   async findOne(id: number) {
     const communication = await this.repo.findOne({
@@ -167,13 +158,9 @@ export class CommunicationService {
   async findOneByReservationId(id: number) {
 
     const communication = await this.repo.findOne({
-      where : {reservation: { id },} ,
+      where : {reservation: { id } } ,
       relations: ['from', 'to', 'venue', 'reservation'],
     });
-
-    // if (!communication) {
-    //   throw new NotFoundException(`Communication with ID ${id} not found`);
-    // }
 
     return communication;
   }
@@ -216,10 +203,61 @@ export class CommunicationService {
       message: dto.message,
       type: dto.type,
       createdAt: new Date().toISOString(),
+      isRead: false, // 👈 mark as unread
     };
 
     message.replies = [...(message.replies || []) as any , replyEntry];
 
     return this.repo.save(message);
   }
+
+
+  async markRepliesAsRead(communicationId: number, userId: number) {
+    const communication = await this.repo.findOne({
+      where: { id: communicationId },
+    });
+  
+    if (!communication) {
+      throw new NotFoundException('Communication not found');
+    }
+  
+    let updated = false;
+  
+    // Go through each reply and mark it as read if it's addressed to the current user
+    communication.replies = (communication.replies || []).map((reply:any) => {
+      // If reply.to is an object with `id`
+      if (reply.to?.id === userId && reply.isRead !== true) {
+        updated = true;
+        return { ...reply, isRead: true };
+      }
+      return reply;
+    });
+  
+    if (updated) {
+      await this.repo.save(communication);
+    }
+  
+    return { success: true };
+  }
+
+
+
+  async resetAllRepliesToUnread() {
+    const communications = await this.repo.find();
+  
+    for (const comm of communications) {
+      if (Array.isArray(comm.replies)) {
+        comm.replies = comm.replies.map(reply => ({
+          ...reply,
+          isRead: false,
+        }));
+  
+        await this.repo.save(comm);
+      }
+    }
+  
+    return { success: true, updated: communications.length };
+  }
+  
+  
 }

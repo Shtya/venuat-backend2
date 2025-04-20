@@ -28,8 +28,17 @@ export class Communication {
   venue: Venue;
 
   
-  @Column({type: 'jsonb',default: [],})
-  replies: {from: string;to: string;message: string;createdAt: string;}[];
+  @Column({ type: 'jsonb', default: [] })
+  replies: {
+    from: string;
+    to: string;
+    message: string;
+    createdAt: string;
+    isRead?: boolean; // 👈 add this
+  }[];
+
+
+  
 
     @CreateDateColumn()
     created_at: Date;

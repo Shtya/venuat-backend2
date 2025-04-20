@@ -1,5 +1,5 @@
 // src/communication/communication.controller.ts
-import { Controller, Post, Get, Body, Query, Param } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Param, Patch } from '@nestjs/common';
 import { CommunicationService } from './communication.service';
 import { CreateCommunicationDto } from 'dto/venue/communication.dto';
 
@@ -13,9 +13,7 @@ export class CommunicationController {
   }
 
   @Get()
-  findAll(
-    @Query('type') type?: any , 
-    @Query('fromId') fromId ?:string, @Query('toId') toId?: string ) {
+  findAll( @Query('type') type?: any , @Query('fromId') fromId ?:string, @Query('toId') toId?: string ) {
     return this.service.findFiltered(type , fromId , toId );
   }
 
@@ -30,6 +28,19 @@ export class CommunicationController {
   async getOneByReservationId(@Param('id') id: number) {
     return this.service.findOneByReservationId(id);
   }
+
+  @Patch(':id/mark-read/:userId')
+  markAsRead( @Param('id') communicationId: number, @Param('userId') userId: number, ) {
+    return this.service.markRepliesAsRead(communicationId, userId);
+  }
+
+
+  @Patch('reset-all-replies-unread')
+  resetRepliesUnread() {
+    return this.service.resetAllRepliesToUnread();
+  }
+
+
 
 
   @Post(':id/reply')
