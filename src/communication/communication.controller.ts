@@ -29,6 +29,16 @@ export class CommunicationController {
     return this.service.findOneByReservationId(id);
   }
 
+  @Get('venue/:id')
+  async getAllByVenueId(
+    @Param('id') id: number,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+  ) {
+    return this.service.findAllByVenueId(+id, +page, +limit);
+  }
+  
+
   @Patch(':id/mark-read/:userId')
   markAsRead( @Param('id') communicationId: number, @Param('userId') userId: number, ) {
     return this.service.markRepliesAsRead(communicationId, userId);

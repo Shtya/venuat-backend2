@@ -13,17 +13,14 @@
       "path": "C:/xampp/htdocs/m5zoon"
     },
     {
-      "name": "HTML Ecom Station",
-      "path": "../../M5zoon/HTML Ecom Station"
-    },
-    {
+      "name": "JOE 13 Website",
       "path": "../JOE 13 Website"
     },
     {
-      "path": "../../road-map"
+      "path": "../../M5zoon/HTML Brand Hub"
     }
   ],
   "settings": {
-    "liveServer.settings.multiRootWorkspaceName": "HTML Ecom Station"
+    "liveServer.settings.multiRootWorkspaceName": "HTML Brand Hub"
   }
 }

@@ -165,6 +165,29 @@ export class CommunicationService {
     return communication;
   }
 
+
+  async findAllByVenueId(venueId: number, page = 1, limit = 10) {
+    const [data, totalCount] = await this.repo.findAndCount({
+      where: { venue: { id: venueId } },
+      relations: ['from', 'to', 'venue', 'reservation'],
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { id: 'DESC' }, // يمكن تغييره حسب المطلوب
+    });
+  
+    const totalPages = Math.ceil(totalCount / limit);
+  
+    return {
+      totalCount,
+      totalPages,
+      currentPage: +page,
+      limit: +limit,
+      data,
+    };
+  }
+  
+  
+
   async replyTo(id: number, dto: { type: 'sender' | 'receiver'; message: string }) {
     const message = await this.repo.findOne({
       where: { id },
