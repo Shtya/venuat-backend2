@@ -9,15 +9,19 @@
       "path": "../Venuat Website"
     },
     {
-      "name": "m5zoon",
-      "path": "C:/xampp/htdocs/m5zoon"
+      "name": "HTML Ecom Station",
+      "path": "../../M5zoon/HTML Ecom Station"
     },
     {
-      "name": "JOE 13 Website",
-      "path": "../JOE 13 Website"
+      "name": "washak",
+      "path": "../../M5zoon/washak"
     },
     {
+      "name": "HTML Brand Hub",
       "path": "../../M5zoon/HTML Brand Hub"
+    },
+    {
+      "path": "../joe13-backend"
     }
   ],
   "settings": {

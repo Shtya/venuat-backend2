@@ -11,47 +11,19 @@ import { checkFieldExists, globalError } from 'utils/checkFieldExists';
 import { randomInt } from 'crypto';
 import * as dayjs from 'dayjs';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { Role } from 'entity/permission/role.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
+    @InjectRepository(Role) private readonly roleRepository: Repository<Role>,
     private jwtService: JwtService,
     public readonly mailService: MailService,
     public readonly i18n: I18nService,
     private firebaseService: FirebaseService
   ) {}
 
-  // async googleLogin(token: string) {
-  //   try {
-  //     const auth = this.firebaseService.getAuth();
-  //     const decodedToken = await auth.verifyIdToken(token);
-
-  //     const userData = {
-  //       full_name: decodedToken.name,
-  //       email: decodedToken.email,
-  //       avatar: decodedToken.picture,
-  //     };
-
-  //     let user = await this.findOrCreate(userData);
-  //     const accessToken = await this.generateAccessToken(user);
-  //     const refreshToken = await this.generateRefreshToken(user);
-
-  //     const userWithoutPassword = await this.userRepository.findOne({
-  //       where: { id: user.id },
-  //       relations: ['role'],
-  //       select: ['id', 'phone', 'role', 'status', 'email', 'full_name', 'created_at', 'updated_at'],
-  //     });
-
-
-  //     return { ...userWithoutPassword, accessToken, refreshToken };
-  //   } catch (error) {
-  //     console.log(error)
-  //     throw new UnauthorizedException('Google login failed');
-  //   }
-  // }
-
-  
   // Google Login
   async googleLogin(token: string) {
     try {
@@ -194,8 +166,19 @@ export class AuthService {
       throw new globalError(this.i18n.t('events.check_your_email_for_verification'), 403);
     }
 
+    
+    
     const comparePassword = await argon.verify(user.password, dto.password);
     if (!comparePassword) throw new UnauthorizedException(this.i18n.t('events.invalid_email_or_password'));
+    
+
+    if (!user.role) {
+      const userRole = await this.roleRepository.findOne({ where: { name: 'user' } });
+      if (!userRole) throw new Error('Default user role not found');
+      user.role = userRole;
+      await this.userRepository.save(user);
+    }
+
 
     const accessToken = await this.generateAccessToken(user);
     const refreshToken = await this.generateRefreshToken(user);
@@ -323,6 +306,7 @@ export class AuthService {
   }
 
   async generateAccessToken(user: User): Promise<string> {
+    console.log(user)
     const payload = { id: user.id, email: user.email, role: user.role.id };
     return this.jwtService.signAsync(payload, {
       secret: process.env.JWT_SECRET,
