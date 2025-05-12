@@ -5,23 +5,19 @@
       "path": "."
     },
     {
-      "name": "Venuat Website",
-      "path": "../Venuat Website"
+      "path": "../../M5zoon/M5zoon/M5zoon Website NextJS"
     },
     {
-      "name": "HTML Ecom Station",
-      "path": "../../M5zoon/HTML Ecom Station"
+      "path": "../../Me/eCommerce"
     },
     {
-      "name": "washak",
-      "path": "../../M5zoon/washak"
+      "path": "../JOE 13 Company/JOE 13 Backend"
     },
     {
-      "name": "HTML Brand Hub",
+      "path": "C:/xampp/htdocs/m5zoon"
+    },
+    {
       "path": "../../M5zoon/HTML Brand Hub"
-    },
-    {
-      "path": "../joe13-backend"
     }
   ],
   "settings": {

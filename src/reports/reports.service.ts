@@ -90,6 +90,82 @@ export class ReportsService {
   }
   
 
+async getHomeStatistics(dto: any) {
+  const { from, to } = dto;
+
+  const totalVendors = await this.venueRepo
+    .createQueryBuilder('venue')
+    .leftJoin('venue.property', 'property')
+    .leftJoin('property.vendor', 'user')
+    .select('COUNT(DISTINCT user.id)', 'count')
+    .getRawOne();
+
+
+  // 2. New vendors this month
+  const currentMonthStart = new Date();
+  currentMonthStart.setDate(1);
+  currentMonthStart.setHours(0, 0, 0, 0);
+
+  const newVendorsThisMonth = await this.venueRepo
+    .createQueryBuilder('venue')
+    .leftJoin('venue.property', 'property')
+    .leftJoin('property.vendor', 'user')
+    .where('user.created_at >= :start', { start: currentMonthStart })
+    .select('COUNT(DISTINCT user.id)', 'count')
+    .getRawOne();
+
+
+    
+    // 3. Total reservations this month
+    const reservationsThisMonth = await this.reservationRepo
+    .createQueryBuilder('reservation')
+    .where('reservation.created_at >= :start', { start: currentMonthStart })
+    .select('COUNT(reservation.id)', 'count')
+    .getRawOne();
+    
+    // 4. Total sales this month
+    const salesThisMonth = await this.reservationRepo
+    .createQueryBuilder('reservation')
+    .where('reservation.created_at >= :start', { start: currentMonthStart })
+    .select('SUM(reservation.total_price)', 'total')
+    .getRawOne();
+    
+    // // 5. Monthly stats (last 5 months)
+    const monthlyData = await this.reservationRepo
+    .createQueryBuilder('reservation')
+    .select("TO_CHAR(reservation.created_at, 'Mon')", 'month')
+    .addSelect('COUNT(reservation.id)', 'reservationCount')
+    .addSelect('SUM(reservation.total_price)', 'revenue')
+    .where('reservation.created_at >= NOW() - INTERVAL \'5 months\'')
+    .groupBy('month')
+    .orderBy('MIN(reservation.created_at)', 'ASC')
+    .getRawMany();
+    
+  const months = monthlyData.map(item => item.month);
+  const reservationsPerMonth = monthlyData.map(item => +item.reservationCount);
+  const revenuePerMonth = monthlyData.map(item => +item.revenue);
+
+  return {
+    totalVendors: +totalVendors.count || 0,
+    newVendorsThisMonth: +newVendorsThisMonth.count || 0,
+    reservationsThisMonth: +reservationsThisMonth.count || 0,
+    salesThisMonth: +salesThisMonth.total || 0,
+    charts: {
+      reservations: {
+        labels: months,
+        data: reservationsPerMonth,
+      },
+      revenue: {
+        labels: months,
+        data: revenuePerMonth,
+      },
+    },
+  };
+}
+
+
+
+
 
   async getVendorReservationVenueReport(dto: any) {
     const {from , to, userId, limit = 20, page = 1 } = dto;

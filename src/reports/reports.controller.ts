@@ -64,6 +64,14 @@ export class ReportsController {
 
 
   // RESERVATION REPORTS
+  @Get('home-statistics')
+  homeStatistics(@Query() dto: any) {
+    return this.reportsService.getHomeStatistics(dto);
+  }
+
+
+
+  // RESERVATION REPORTS
   @Get('reservation/city')
   getReservationByCity(@Query() dto: ReservationReportDto) {
     return this.reportsService.getReservationCityReport(dto);
