@@ -3,11 +3,7 @@ import { Venue } from 'entity/venue/venue.entity';
 import { VenuePackage } from 'entity/venue/venue_package.entity';
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-export enum ReservationStatus {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  CANCELLED = 'cancelled',
-}
+
 
 @Entity('reservations')
 export class Reservation {
@@ -26,8 +22,8 @@ export class Reservation {
   @Column('jsonb', { nullable: true })
   package_details: object | null;
 
-  @Column({ type: 'enum', enum: ReservationStatus })
-  status: ReservationStatus;
+  @Column({ nullable: true , default : "pending" })
+  status: string;
 
   @Column({ type: 'date' })
   check_in: Date;

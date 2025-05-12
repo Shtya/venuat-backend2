@@ -8,7 +8,6 @@ import {
   IsString, 
   isObject
 } from 'class-validator';
-import { ReservationStatus } from 'entity/reservation/reservation.entity';
 
 export class CreateReservationDto {
   @IsNotEmpty({ message: "events.userIdRequired" }) 
@@ -27,8 +26,7 @@ export class CreateReservationDto {
   package_details: object;
 
   @IsNotEmpty({ message: "events.reservationStatusRequired" }) 
-  @IsEnum(ReservationStatus, { message: "events.invalidReservationStatus" }) 
-  status: ReservationStatus;
+  status: string;
 
   @IsNotEmpty({ message: "events.checkInDateRequired" }) 
   @Type(() => Date)

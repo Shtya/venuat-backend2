@@ -75,7 +75,10 @@ export class BaseService<T> {
      customRelations?: boolean,
      status?: string ,
      occasion?: number | number[],
+     relationSearchFields?: { [relation: string]: string[]}
     ) {
+
+
     const pageNumber = Number(page) || 1;
     const limitNumber = Number(limit) || 10;
 
@@ -182,6 +185,7 @@ export class BaseService<T> {
       );
     }
 
+
     //! Validate and apply relations
     if (relations?.length > 0) {
       const invalidRelations = relations.filter(relation => !this.repository.metadata.relations.some(rel => rel.propertyName === relation));
@@ -204,7 +208,6 @@ export class BaseService<T> {
     }
 
     query.orderBy(`${entityName}.${sortField}`, sortDirection);
-
       //! if exist filter via occasion
       if (occasion !== undefined) {
         if (Array.isArray(occasion)) {
@@ -229,11 +232,216 @@ export class BaseService<T> {
       });
     }
 
+
   
+    
+
+
 
 
     return { limit: limitNumber, countRecored: total, page: pageNumber, data };
   }
+
+
+  async FIND_Objects(
+  entityName: string,
+  search?: string,
+  page: any = 1,
+  limit: any = 10,
+  sortBy?: string,
+  sortOrder: 'ASC' | 'DESC' = 'DESC',
+  fieldsExclude?: string[],
+  relations: string[] = [],
+  searchFields?: string[],
+  specificSearchFields?: any,
+  customRelations?: boolean,
+  status?: string,
+  occasion?: number | number[],
+  relationSearchFields?: { [relation: string]: string[] }
+) {
+  const pageNumber = Number(page) || 1;
+  const limitNumber = Number(limit) || 10;
+
+  if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
+    throw new BadRequestException(this.i18n.t('events.invalid_pagination'));
+  }
+
+  if (!['ASC', 'DESC'].includes(sortOrder)) {
+    throw new BadRequestException(this.i18n.t('events.invalid_sort_order'));
+  }
+
+  const skip = (pageNumber - 1) * limitNumber;
+  const query = this.repository.createQueryBuilder(entityName).skip(skip).take(limitNumber);
+
+  // ✅ Apply relations (joins)
+  if (relations?.length > 0) {
+    const invalidRelations = relations.filter(r => !this.repository.metadata.relations.some(rel => rel.propertyName === r));
+    if (invalidRelations.length > 0) {
+      throw new BadRequestException(this.i18n.t('events.invalid_relations', { args: { relations: invalidRelations.join(', ') } }));
+    }
+
+    relations.forEach(relation => {
+      query.leftJoinAndSelect(`${entityName}.${relation}`, relation); // alias is same as relation name
+    });
+  }
+
+  // ✅ Apply specific field filters
+  if (specificSearchFields) {
+    const specificSearchFieldstemp: { [key: string]: string } = {};
+
+    Object.entries(specificSearchFields).forEach(([key, value]) => {
+      if (key.startsWith('field:')) {
+        const field = key.split(':')[1];
+        if (field) {
+          specificSearchFieldstemp[field] = value as string;
+        }
+      }
+    });
+
+    const existingFields = this.repository.metadata.columns.map(col => col.propertyName);
+    const nonExistentFields = Object.keys(specificSearchFieldstemp).filter(field => !existingFields.includes(field));
+
+    Object.keys(specificSearchFieldstemp).forEach(e => {
+      if (relations.includes(e))
+        throw new ConflictException(this.i18n.t('events.non_existent_fields', { args: { fields: nonExistentFields.join(', ') } }));
+    });
+
+    if (nonExistentFields.length > 0) {
+      throw new ConflictException(this.i18n.t('events.non_existent_relation_fields', { args: { fields: nonExistentFields.join(', ') } }));
+    }
+
+    if (Object.keys(specificSearchFieldstemp).length > 0) {
+      query.andWhere(
+        new Brackets(qb => {
+          Object.entries(specificSearchFieldstemp).forEach(([field, searchValue]) => {
+            const columnMetadata = this.repository.metadata.columns.find(col => col.propertyName === field);
+            if (columnMetadata) {
+              if (columnMetadata.type === 'jsonb') {
+                qb.orWhere(`LOWER(${entityName}.${field}::text) LIKE LOWER(:searchValue)`, { searchValue: `%${searchValue}%` });
+              } else if (columnMetadata.type === String) {
+                qb.orWhere(`LOWER(${entityName}.${field}) LIKE LOWER(:value)`, { value: `%${searchValue}%` });
+              } else if (['decimal', 'float'].includes(columnMetadata.type as string)) {
+                const numericSearch = parseFloat(searchValue);
+                if (!isNaN(numericSearch)) {
+                  qb.orWhere(`${entityName}.${field} = :numericSearch`, { numericSearch });
+                }
+              } else if (columnMetadata.type === 'timestamp') {
+                let normalizedSearchValue = searchValue;
+                if (/^\d{4}-\d{2}$/.test(searchValue)) {
+                  normalizedSearchValue = `${searchValue}-01`;
+                  qb.orWhere(`${entityName}.${field} = CAST(:normalizedSearchValue AS timestamp)`, { normalizedSearchValue });
+                }
+              } else {
+                qb.orWhere(`${entityName}.${field} = :value`, { value: searchValue });
+              }
+            }
+          });
+
+          if (status) qb.andWhere(`${entityName}.status = :status`, { status });
+        })
+      );
+    }
+  }
+
+ // ✅ Apply general search
+if (search && (searchFields?.length || Object.keys(relationSearchFields || {}).length)) {
+  query.andWhere(
+    new Brackets(qb => {
+      // ✅ Main entity search
+      for (const field of searchFields || []) {
+        const col = this.repository.metadata.columns.find(col => col.propertyName === field);
+
+        if (!col) continue;
+
+        if (col.type === 'jsonb') {
+          // Fix for jsonb fields: Convert to text before using LOWER
+          qb.orWhere(
+            new Brackets(qbNested => {
+              // Assuming the JSONB contains keys like 'ar' and 'end'
+              qbNested
+                .orWhere(`LOWER(${entityName}.${field}->>'ar') LIKE LOWER(:search)`, { search: `%${search}%` })
+                .orWhere(`LOWER(${entityName}.${field}->>'end') LIKE LOWER(:search)`, { search: `%${search}%` });
+            })
+          );
+        } else if (col.type === String || col.type === 'text') {
+          qb.orWhere(`LOWER(${entityName}.${field}) LIKE LOWER(:search)`, { search: `%${search}%` });
+        } else if (['decimal', 'float', 'float4', 'float8', 'double precision'].includes(col.type as string)) {
+          const num = parseFloat(search);
+          if (!isNaN(num)) {
+            qb.orWhere(`${entityName}.${field} = :num`, { num });
+          }
+        } else if (col.type === 'enum' && col.enum?.includes(search)) {
+          qb.orWhere(`${entityName}.${field} = :search`, { search });
+        } else {
+          qb.orWhere(`${entityName}.${field} = :search`, { search });
+        }
+      }
+
+      // ✅ Relation search
+      for (const [relation, fields] of Object.entries(relationSearchFields || {})) {
+        for (const rawField of fields) {
+          const [field, type] = rawField.split(':'); // e.g. "name:jsonb" → ["name", "jsonb"]
+
+          if (type === 'jsonb') {
+            // Search inside JSONB keys (assuming keys 'ar' and 'end')
+            qb.orWhere(
+              new Brackets(qb2 => {
+                qb2
+                  .orWhere(`LOWER(${relation}.${field}->>'ar') LIKE LOWER(:search)`, { search: `%${search}%` })
+                  .orWhere(`LOWER(${relation}.${field}->>'en') LIKE LOWER(:search)`, { search: `%${search}%` });
+              })
+            );
+          } else {
+            qb.orWhere(`LOWER(${relation}.${field}) LIKE LOWER(:search)`, { search: `%${search}%` });
+          }
+        }
+      }
+    
+
+      
+    })
+  );
+}
+
+
+  // ✅ Apply sort
+  const defaultSortBy = 'created_at';
+  const sortField = sortBy || defaultSortBy;
+  const sortDirection = sortOrder || 'DESC';
+
+  const columnExists = this.repository.metadata.columns.some(col => col.propertyName === sortField);
+  if (!columnExists) {
+    throw new BadRequestException(this.i18n.t('events.invalid_sort_by', { args: { sortBy: sortField } }));
+  }
+
+  query.orderBy(`${entityName}.${sortField}`, sortDirection);
+
+  // ✅ Filter by occasion
+  if (occasion !== undefined) {
+    if (Array.isArray(occasion)) {
+      query.andWhere('occasion.id IN (:...occasionIds)', { occasionIds: occasion });
+    } else {
+      query.andWhere('occasion.id = :occasion', { occasion });
+    }
+  }
+
+  // ✅ Execute query
+  const [data, total] = await query.getManyAndCount();
+
+  // ✅ Remove excluded fields
+  if (fieldsExclude?.length) {
+    const invalidFields = fieldsExclude.filter(field => !this.repository.metadata.columns.some(col => col.propertyName === field));
+    if (invalidFields.length > 0) {
+      throw new BadRequestException(this.i18n.t('events.invalid_exclude_fields', { args: { fields: invalidFields.join(', ') } }));
+    }
+
+    data.forEach(item => {
+      fieldsExclude.forEach(field => delete item[field]);
+    });
+  }
+
+  return { limit: limitNumber, countRecored: total, page: pageNumber, data };
+}
 
   async findAll(
     entityName: string,

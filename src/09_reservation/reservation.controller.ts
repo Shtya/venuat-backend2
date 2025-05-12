@@ -22,18 +22,38 @@ export class ReservationController   {
   async findAll(@Query() query  ) {
     const { page, limit, search, sortBy, sortOrder, ...restQueryParams }  = query  ;
     
-    return this.reservationService.FIND(
+    // return this.reservationService.FIND(
+    //   'reservations',
+    //   search ,
+    //   page,
+    //   limit,
+    //   sortBy,
+    //   sortOrder,
+    //   [],                // exclude some fields
+    //   ["user" , "venue" , "package"],                // Relations 
+    //   [ "status" , "total_price"  ],         // search parameters
+    //   restQueryParams    // search with fields
+    // );
+    return this.reservationService.FIND_Objects(
       'reservations',
-      search ,
+      search,
       page,
       limit,
       sortBy,
       sortOrder,
-      [],                // exclude some fields
-      ["user" , "venue" , "package"],                // Relations 
-      ["name" ],         // search parameters
-      restQueryParams    // search with fields
+      [], // excluded fields
+      ['user', 'venue', 'package'], // relations
+      ['status', 'total_price'], // direct fields
+      restQueryParams, // specific search
+      false, // customRelations
+      undefined, // status
+      undefined, // occasion
+      {
+        user: ['full_name', 'email' , "phone" ],
+        venue: ['name:jsonb']
+      }
     );
+
   }
 
 
