@@ -21,6 +21,18 @@ export class UserController {
     private readonly userService: UserService
   ) {}
 
+
+
+  @Get('my-wallet/:vendorId')
+  async getTotalReservations(
+    @Param('vendorId') vendorId: number,
+  ) {
+    const totalMoney = await this.userService.getTotalReservationMoney(vendorId);
+    return { totalMoney };
+  }
+
+
+
   @Get('users')
   @UseGuards(AuthGuard)
   @Permissions(EPermissions.USERS_READ)

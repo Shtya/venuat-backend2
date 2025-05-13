@@ -19,8 +19,8 @@ export class VenueController {
     private occasionTypeRepository: Repository<OccasionType>,
     @InjectRepository(Property)
     private prpoertyRepo: Repository<Property>,
-    private readonly venueService: VenueService ,
-    private readonly i18n : I18nService
+    private readonly venueService: VenueService,
+    private readonly i18n: I18nService
   ) {}
 
   @Post()
@@ -30,11 +30,9 @@ export class VenueController {
     return this.venueService.createCustom(createVenueDto);
   }
 
-
-
   @Get()
-  async findAll(@Query() query  ) {
-    const { page, limit, search, occasion, sortBy, sortOrder, ...restQueryParams }  = query  ;
+  async findAll(@Query() query) {
+    const { page, limit, search, occasion, sortBy, sortOrder, ...restQueryParams } = query;
 
     let occasionIds: number | number[] | undefined;
 
@@ -48,26 +46,31 @@ export class VenueController {
       }
     }
 
-
-    return   this.venueService.FIND(
+    return this.venueService.FIND(
       'venue',
-      search ,
+      search,
       page,
       limit,
       sortBy,
       sortOrder,
-      [],                // exclude some fields
-      this.venueService.relations,                // Relations 
-      ["name" , "description" , "operating_system" ,"phone" ,"email" ,"contact_person" ],         // search parameters
-      restQueryParams,    // search with fields
-      true ,
-      "",
+      [], // exclude some fields
+      this.venueService.relations, // Relations
+      ['name', 'description', 'operating_system', 'phone', 'email', 'contact_person'], // search parameters
+      restQueryParams, // search with fields
+      true,
+      '',
       occasionIds
-    )
+    );
   }
 
+  @Get('vendor/:vendorId')
+  async getVenuesByVendor(@Param('vendorId') vendorId: number , @Query() query ) {
+        const { page, limit, sortBy, sortOrder } = query;
 
-  @Get("find-all")
+    return this.venueService.getAllByVendor(vendorId , query );
+  }
+
+  @Get('find-all')
   async findAll2(@Query() query) {
     const {
       page,
@@ -106,43 +109,38 @@ export class VenueController {
       undefined, // fieldsExclude
       visitor ? Number(visitor) : undefined,
       city ? Number(city) : undefined,
-      occasionIds ,
+      occasionIds,
       startOccasion,
       mostVisited === 'true',
       highestRated === 'true',
       newest === 'true',
-      minPrice ? Number(minPrice) : undefined, 
-      maxPrice ? Number(maxPrice) : undefined 
+      minPrice ? Number(minPrice) : undefined,
+      maxPrice ? Number(maxPrice) : undefined
     );
   }
 
-
-
   @Get(':id')
-  async findOne(@Param('id') id: number , @Query("packageId") packageId : number ) {
-    return  this.venueService.customFindOne(id , packageId)
+  async findOne(@Param('id') id: number, @Query('packageId') packageId: number) {
+    return this.venueService.customFindOne(id, packageId);
   }
-  
+
   @Get(':id/detials-venue')
-  async findOneDetailsVenue(@Param('id') id: number ) {
-    return  this.venueService.findOneDetailsVenue(id )
+  async findOneDetailsVenue(@Param('id') id: number) {
+    return this.venueService.findOneDetailsVenue(id);
   }
-  
+
   @Get(':id/reservation-venue')
-  async findOneReservationVenue(@Param('id') id: number  , @Query("packageId") packageId : number  ) {
-    return  this.venueService.findOneReservationVenue(id , packageId )
+  async findOneReservationVenue(@Param('id') id: number, @Query('packageId') packageId: number) {
+    return this.venueService.findOneReservationVenue(id, packageId);
   }
-
-
-
 
   @Put(':id')
   @UseGuards(AuthGuard)
   @Permissions(EPermissions.VENUES_UPDATE)
   async update(@Param('id') id: number, @Body() dto: UpdateVenueDto) {
-    dto.occasion && (await checkFieldExists(this.occasionTypeRepository, { id: dto.occasion }, this.i18n.t("events.venue.occasion_type_not_found") , true)); //!'Occasion type does not exist'
-    dto.property && (await checkFieldExists(this.prpoertyRepo, { id: dto.property }, this.i18n.t("events.venue.property_not_found") , true)); //!'Property does not exist'
-    
+    dto.occasion && (await checkFieldExists(this.occasionTypeRepository, { id: dto.occasion }, this.i18n.t('events.venue.occasion_type_not_found'), true)); //!'Occasion type does not exist'
+    dto.property && (await checkFieldExists(this.prpoertyRepo, { id: dto.property }, this.i18n.t('events.venue.property_not_found'), true)); //!'Property does not exist'
+
     return this.venueService.update(id, dto);
   }
 

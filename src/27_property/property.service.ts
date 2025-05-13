@@ -27,4 +27,42 @@ export class PropertyService extends BaseService<Property> {
 
     return property;
   }
+
+
+  async getAllByVendor(
+    vendorId: number,
+    query: {
+      page: string;
+      limit: string;
+      sortBy: string;
+      sortOrder: 'ASC' | 'DESC';
+    },
+  ){
+    // Parse query parameters to numbers, fallback to defaults if invalid
+    const page = isNaN(Number(query.page)) ? 1 : Math.max(1, Number(query.page));
+    const limit = isNaN(Number(query.limit)) ? 10 : Math.max(1, Number(query.limit));
+
+    const { sortBy = 'id', sortOrder = 'DESC' } = query;
+
+    const [data, total] = await this.propertyRepository.findAndCount({
+      where: {
+        vendor: {
+          id: vendorId
+        },
+      },
+      relations: ['vendor'],
+      order: {
+        [sortBy]: sortOrder,
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      total,
+      page,
+      limit,
+      data,
+    };
+  }
 }

@@ -317,25 +317,61 @@ export class AuthService {
   async generateRefreshToken(user: User): Promise<string> {
     const payload = { id: user.id, email: user.email, role: user.role.id };
     return this.jwtService.signAsync(payload, {
-      secret: process.env.JWT_REFRESH_SECRET,
+      secret: process.env.JWT_SECRET,
       expiresIn: process.env.JWT_REFRESH_EXPIRE,
     });
   }
 
+  // async verifyRefreshToken(token: string): Promise<any> {
+  //   if (!token) globalError(this.i18n.t('events.refresh_token_required'), 400);
+  //   const payload = await this.jwtService.verifyAsync(token, { secret: process.env.JWT_SECRET });
+  //   console.log( payload)
+
+  //   if (!payload) {
+  //     throw new UnauthorizedException(this.i18n.t('events.invalid_refresh_token'));
+  //   }
+
+  //   const user = await this.userRepository.findOne({ where: { id: payload.id }, relations: ['role'] });
+  //   if (!user) {
+  //     throw new UnauthorizedException(this.i18n.t('events.user_not_found_generic'));
+  //   }
+
+  //   const accessToken = await this.generateAccessToken(user);
+  //   return { accessToken };
+  // }
+
   async verifyRefreshToken(token: string): Promise<any> {
-    if (!token) globalError(this.i18n.t('events.refresh_token_required'), 400);
-    const payload = await this.jwtService.verifyAsync(token, { secret: process.env.JWT_REFRESH_SECRET });
-
-    if (!payload) {
-      throw new UnauthorizedException(this.i18n.t('events.invalid_refresh_token'));
-    }
-
-    const user = await this.userRepository.findOne({ where: { id: payload.id }, relations: ['role'] });
-    if (!user) {
-      throw new UnauthorizedException(this.i18n.t('events.user_not_found_generic'));
-    }
-
-    const accessToken = await this.generateAccessToken(user);
-    return { accessToken };
+  if (!token) {
+    globalError(this.i18n.t('events.refresh_token_required'), 400);
   }
+
+  let payload: any;
+  try {
+    payload = await this.jwtService.verifyAsync(token, {
+      secret: process.env.JWT_SECRET,
+    });
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      throw new UnauthorizedException(this.i18n.t('events.refresh_token_expired'));
+    }
+    throw new UnauthorizedException(this.i18n.t('events.invalid_refresh_token'));
+  }
+
+  if (!payload) {
+    throw new UnauthorizedException(this.i18n.t('events.invalid_refresh_token'));
+  }
+
+  const user = await this.userRepository.findOne({
+    where: { id: payload.id },
+    relations: ['role'],
+  });
+
+  if (!user) {
+    throw new UnauthorizedException(this.i18n.t('events.user_not_found_generic'));
+  }
+
+  const accessToken = await this.generateAccessToken(user);
+  return { accessToken };
+}
+
 }

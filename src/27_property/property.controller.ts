@@ -32,6 +32,15 @@ export class PropertyController {
   }
 
 
+    @Get('vendor/:vendorId')
+    async getVenuesByVendor(@Param('vendorId') vendorId: number , @Query() query ) {
+          const { page, limit, sortBy, sortOrder } = query;
+
+      return this.propertyService.getAllByVendor(vendorId , query );
+    }
+
+
+
 
   @Post()
   @UseInterceptors(FileInterceptor('file', multerOptions))

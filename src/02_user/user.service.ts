@@ -9,6 +9,7 @@ import { UpdateUserDto } from 'dto/user.dto';
 import { BaseService } from 'common/base/base.service';
 import { checkFieldExists } from 'utils/checkFieldExists';
 import { Role } from 'entity/permission/role.entity';
+import { Reservation } from 'entity/reservation/reservation.entity';
 
 @Injectable()
 export class UserService extends BaseService<User> {
@@ -19,6 +20,8 @@ export class UserService extends BaseService<User> {
     private readonly roleRepository: Repository<Role>,
     private jwtService: JwtService,
     private readonly mailService: MailService,
+    @InjectRepository(Reservation) private reservationRepo: Repository<Reservation>,
+
 
   ) {
     super(userRepository);
@@ -126,5 +129,18 @@ export class UserService extends BaseService<User> {
     await this.userRepository.save(user);
 
     return user;
+  }
+
+
+  async getTotalReservationMoney(vendorId: number): Promise<number> {
+    const result = await this.reservationRepo
+      .createQueryBuilder('reservation')
+      .select('SUM(reservation.total_price)', 'total')
+      .leftJoin('reservation.venue', 'venue')
+      .leftJoin('venue.property', 'property')
+      .where('property.vendor = :vendorId', { vendorId })
+      .getRawOne();
+
+    return parseFloat(result.total) || 0;  // Default to 0 if no result
   }
 }

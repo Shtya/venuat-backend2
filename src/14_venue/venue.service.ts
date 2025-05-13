@@ -33,6 +33,49 @@ export class VenueService extends BaseService<Venue> {
   public relations: string[] = ['occasion', 'ratings', 'venueGalleries'];
   public relationsOne: string[] = ['occasion', 'ratings', 'property', 'property.city', 'property.city.country', 'venueGalleries', 'venueFAQs', 'venuePackages', 'venueServices', 'venueServices.service', 'venueEquipments', 'venueEquipments.equipment', 'venueFeatures', 'venueFeatures.feature'];
 
+
+async getAllByVendor(
+    vendorId: number,
+    query: {
+      page: string;
+      limit: string;
+      sortBy: string;
+      sortOrder: 'ASC' | 'DESC';
+    },
+  ){
+    // Parse query parameters to numbers, fallback to defaults if invalid
+    const page = isNaN(Number(query.page)) ? 1 : Math.max(1, Number(query.page));
+    const limit = isNaN(Number(query.limit)) ? 10 : Math.max(1, Number(query.limit));
+
+    const { sortBy = 'id', sortOrder = 'DESC' } = query;
+
+    const [data, total] = await this.venueRepository.findAndCount({
+      where: {
+        property: {
+          vendor: {
+            id: vendorId,
+          },
+        },
+      },
+      relations: ['property', 'property.vendor'],
+      order: {
+        [sortBy]: sortOrder,
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      total,
+      page,
+      limit,
+      data,
+    };
+  }
+
+
+
+
   async createCustom(dto: CreateVenueDto): Promise<Venue> {
     dto.occasion && (await checkFieldExists(this.occasionTypeRepository, { id: dto.occasion }, this.i18n.t('events.venue.occasion_type_not_found'), true)); //!'Occasion type does not exist'
     dto.property && (await checkFieldExists(this.propertyRepository, { id: dto.property }, this.i18n.t('events.venue.property_not_found'), true)); //!'Property does not exist'

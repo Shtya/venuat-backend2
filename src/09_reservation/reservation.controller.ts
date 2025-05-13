@@ -21,19 +21,7 @@ export class ReservationController   {
   @Permissions(EPermissions.RESERVATIONS_READ)
   async findAll(@Query() query  ) {
     const { page, limit, search, sortBy, sortOrder, ...restQueryParams }  = query  ;
-    
-    // return this.reservationService.FIND(
-    //   'reservations',
-    //   search ,
-    //   page,
-    //   limit,
-    //   sortBy,
-    //   sortOrder,
-    //   [],                // exclude some fields
-    //   ["user" , "venue" , "package"],                // Relations 
-    //   [ "status" , "total_price"  ],         // search parameters
-    //   restQueryParams    // search with fields
-    // );
+
     return this.reservationService.FIND_Objects(
       'reservations',
       search,
