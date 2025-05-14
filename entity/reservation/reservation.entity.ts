@@ -22,6 +22,7 @@ export class Reservation {
   @Column('jsonb', { nullable: true })
   package_details: object | null;
 
+
   @Column({ nullable: true , default : "pending" })
   status: string;
 
@@ -38,6 +39,8 @@ export class Reservation {
   @Column('jsonb', { nullable: true })
   period_details: Record<string, any> | null;
 
+  @Column('jsonb', { nullable: true })
+  reservation_details: object | null;
 
 
   @Column('decimal')

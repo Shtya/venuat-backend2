@@ -22,60 +22,6 @@ export class ReservationService extends BaseService<Reservation> {
     super(reservationRepo);
   }
 
-  // async createCustom(dto) {
-  //   // 1. Validate related entities
-  //   await checkFieldExists(this.userRepo, { id: dto.user }, this.i18n.t("events.user_not_exist"), true, 404);
-  //   await checkFieldExists(this.venueRepo, { id: dto.venue }, this.i18n.t("events.venue_not_exist"), true, 404);
-
-  //   if (dto.package) {
-  //     await checkFieldExists(this.packageRepo, { id: dto.package }, this.i18n.t("events.package_not_exist"), true, 404);
-  //   }
-
-  //   // 2. Prepare period validation and conflict checks
-  //   const periodIds = Object.values(dto.periods);
-  //   const periods = await this.venuePeriodRepo.findByIds(periodIds);
-
-  //   // Make sure all provided period IDs exist
-  //   if (periods.length !== periodIds.length) {
-  //     const foundIds = periods.map((p) => p.id);
-  //     const missing = periodIds.filter((id:any) => !foundIds.includes(id));
-  //     throw new BadRequestException(
-  //       this.i18n.t("events.period_not_exist", { args: { ids: missing.join(', ') } })
-  //     );
-  //   }
-
-  //   // 3. Conflict check per date/period
-  //   for (const [dateStr, periodId] of Object.entries(dto.periods)) {
-  //     const existingReservation = await this.reservationRepo.createQueryBuilder('reservation')
-  //       .where('reservation.venueId = :venueId', { venueId: dto.venue })
-  //       .andWhere(`(reservation.periods ->> :date) = :periodId`, {
-  //         date: dateStr,
-  //         periodId: periodId.toString(),
-  //       })
-  //       .getOne();
-
-  //     if (existingReservation) {
-  //       throw new BadRequestException(this.i18n.t("events.period_already_reserved", {
-  //         args: { date: dateStr },
-  //       }));
-  //     }
-
-  //     // Mark this date as booked
-  //     await this.venuePeriodRepo.createQueryBuilder()
-  //       .update()
-  //       .set({ booked_dates: () => `array_append(booked_dates, '${dateStr}')` })
-  //       .where("id = :id", { id: periodId })
-  //       .execute();
-  //   }
-
-  //   // 4. Save reservation
-  //   const reservation : any = this.reservationRepo.create(dto);
-  //   reservation.period_details = periods
-
-  //   return await this.reservationRepo.save(reservation);
-
-  // }
-
   async createCustom(dto) {
     // 1. Validate related entities
     await checkFieldExists(this.userRepo, { id: dto.user }, this.i18n.t('events.user_not_exist'), true, 404);

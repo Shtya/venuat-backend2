@@ -49,39 +49,58 @@ export class VenueEquipmentService {
 
 
 
-  async addEquipmentsToVenue(venueId: number, dto: AddEquipmentsToVenueDto) {
-    const venue = await this.venueRepository.findOne({
-      where: { id: venueId },
-      relations: ['venueEquipments'],
+async addEquipmentsToVenue(venueId: number, dto: AddEquipmentsToVenueDto) {
+  const venue = await this.venueRepository.findOne({
+    where: { id: venueId },
+    relations: ['venueEquipments', 'venueEquipments.equipment'],
+  });
+
+  if (!venue) {
+    throw new NotFoundException(
+      this.i18n.t('events.venue.not_found', { args: { id: venueId } }),
+    );
+  }
+
+  const addedOrUpdatedEquipments = [];
+  const messages = [];
+
+  for (const equipmentDto of dto.equipments) {
+    const equipment = await this.equipmentRepository.findOne({
+      where: { id: equipmentDto.equipment_id },
     });
-  
-    if (!venue) {
-      throw new NotFoundException(this.i18n.t('events.venue.not_found', { args: { id: venueId } }));
+
+    if (!equipment) {
+      throw new NotFoundException(
+        this.i18n.t('events.equipment_not_found', {
+          args: { equipmentId: equipmentDto.equipment_id },
+        }),
+      );
     }
-  
-    const addedEquipments = [];
-  
-    for (const equipmentDto of dto.equipments) {
-      const equipment = await this.equipmentRepository.findOne({ where: { id: equipmentDto.equipment_id } });
-  
-      if (!equipment) {
-        throw new NotFoundException(
-          this.i18n.t('events.equipment_not_found', { args: { equipmentId: equipmentDto.equipment_id } })
+
+    const equipmentName = equipment?.name.en || `#${equipment.id}`;
+
+    const existingVenueEquipment = venue.venueEquipments.find(
+      (ve) => ve?.equipment?.id === equipment.id,
+    );
+
+    if (existingVenueEquipment) {
+      if (
+        existingVenueEquipment.count !== equipmentDto.count ||
+        existingVenueEquipment.price !== equipmentDto.price ||
+        existingVenueEquipment.price_per !== equipmentDto.price_per
+      ) {
+        existingVenueEquipment.count = equipmentDto.count;
+        existingVenueEquipment.price = equipmentDto.price;
+        existingVenueEquipment.price_per = equipmentDto.price_per;
+        await this.venueEquipmentRepository.save(existingVenueEquipment);
+        addedOrUpdatedEquipments.push(existingVenueEquipment);
+        messages.push(`Equipment "${equipmentName}" was updated for this venue.`);
+      } else {
+        messages.push(
+          `Equipment "${equipmentName}" is already added with the same count, price and price per.`,
         );
       }
-  
-      // تحقق مما إذا كانت المعدات مضافة مسبقًا إلى هذا الـ Venue
-      const existingVenueEquipment = venue.venueEquipments.find(vs => vs?.equipment?.id === equipment.id);
-  
-      if (existingVenueEquipment) {
-        throw new NotFoundException(
-          this.i18n.t('events.equipment.already_associated', {
-            args: { equipmentId: equipment.id, venueId: venue.id },
-          })
-        );
-      }
-  
-      // إنشاء العلاقة بين المكان والمعدات
+    } else {
       const venueEquipment = this.venueEquipmentRepository.create({
         venue,
         equipment,
@@ -89,14 +108,32 @@ export class VenueEquipmentService {
         price: equipmentDto.price,
         price_per: equipmentDto.price_per,
       });
-  
+
       await this.venueEquipmentRepository.save(venueEquipment);
-      addedEquipments.push(venueEquipment);
+      addedOrUpdatedEquipments.push(venueEquipment);
+      messages.push(`Equipment "${equipmentName}" was added to the venue.`);
     }
-  
-    return addedEquipments;
   }
-  
+
+  const updatedVenue = await this.venueRepository.findOne({
+    where: { id: venueId },
+    relations: ['venueEquipments', 'venueEquipments.equipment'],
+  });
+
+  const equipments = updatedVenue.venueEquipments.map((ve) => ({
+    id: ve.equipment.id,
+    name: ve.equipment.name,
+    count: ve.count,
+    price: ve.price,
+    price_per: ve.price_per,
+  }));
+
+  return {
+    equipments,
+    messages,
+  };
+}
+
 
 
   async getEquipmentForVenue(venueId: number) {

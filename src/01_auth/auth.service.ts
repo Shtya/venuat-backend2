@@ -306,7 +306,6 @@ export class AuthService {
   }
 
   async generateAccessToken(user: User): Promise<string> {
-    console.log(user)
     const payload = { id: user.id, email: user.email, role: user.role.id };
     return this.jwtService.signAsync(payload, {
       secret: process.env.JWT_SECRET,

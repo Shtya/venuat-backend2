@@ -24,11 +24,6 @@ export class AuthController {
     private firebaseService: FirebaseService
   ) {}
 
-  
-  // @Post('google-login')
-  // async googleLogin(@Body('token') token: string) {
-  //   return this.authService.googleLogin(token)
-  // }
 
 
   @Post('google-login')
@@ -92,25 +87,76 @@ async appleLogin(@Body('token') token: string) {
 
 
   @Post('verify-otp')
-  async verifyOtp(@Body() { email, otp }: { email: string; otp: string }) {
-    const user = await this.userRepository.findOne({ where: { email } });
+async verifyOtp(@Body() { email, otp }: { email: string; otp: string }) {
+  const user = await this.userRepository.findOne({ where: { email }, relations: ['role'] });
 
-    if (!user) throw new BadRequestException(this.authService.i18n.t("events.user_not_found"));
-    if (user.status !== 'pending') throw new BadRequestException(this.authService.i18n.t("events.user_already_verified"));
 
-    // Check OTP validity
-    if (user.otpToken !== otp || dayjs().isAfter(user.otpExpire)) {
-      throw new BadRequestException(this.authService.i18n.t("events.invalid_or_expired_otp"));
-    }
-
-    // Update user status to active and clear OTP fields
-    user.status = 'active';
-    user.otpToken = null;
-    user.otpExpire = null;
-    await this.userRepository.save(user);
-
-    return { message: this.authService.i18n.t("events.account_verified_successfully") };
+  if (!user) {
+    throw new BadRequestException(this.authService.i18n.t("events.user_not_found"));
   }
+
+  if (user.status !== 'pending') {
+    throw new BadRequestException(this.authService.i18n.t("events.user_already_verified"));
+  }
+
+  if (user.otpToken !== otp || dayjs().isAfter(user.otpExpire)) {
+    throw new BadRequestException(this.authService.i18n.t("events.invalid_or_expired_otp"));
+  }
+
+  // Update user status to active and clear OTP fields
+  user.status = 'active';
+  user.otpToken = null;
+  user.otpExpire = null;
+
+  // Ensure user has role
+  if (!user.role) {
+    const defaultRole = await this.roleRepository.findOne({ where: { name: 'user' } });
+    if (!defaultRole) throw new Error('Default user role not found');
+    user.role = defaultRole;
+  }
+
+  await this.userRepository.save(user);
+
+  // Generate tokens
+  const accessToken = await this.authService.generateAccessToken(user);
+  const refreshToken = await this.authService.generateRefreshToken(user);
+
+  // Return user info without password
+  const userWithoutPassword = await this.userRepository.findOne({
+    where: { id: user.id },
+    relations: ['role'],
+    select: ['id', 'phone', 'role', 'status', 'email', 'full_name', 'created_at', 'updated_at'],
+  });
+
+  return {
+    message: this.authService.i18n.t("events.account_verified_successfully"),
+    ...userWithoutPassword,
+    accessToken,
+    refreshToken,
+  };
+}
+
+
+  // @Post('verify-otp')
+  // async verifyOtp(@Body() { email, otp }: { email: string; otp: string }) {
+  //   const user = await this.userRepository.findOne({ where: { email } });
+
+  //   if (!user) throw new BadRequestException(this.authService.i18n.t("events.user_not_found"));
+  //   if (user.status !== 'pending') throw new BadRequestException(this.authService.i18n.t("events.user_already_verified"));
+
+  //   // Check OTP validity
+  //   if (user.otpToken !== otp || dayjs().isAfter(user.otpExpire)) {
+  //     throw new BadRequestException(this.authService.i18n.t("events.invalid_or_expired_otp"));
+  //   }
+
+  //   // Update user status to active and clear OTP fields
+  //   user.status = 'active';
+  //   user.otpToken = null;
+  //   user.otpExpire = null;
+  //   await this.userRepository.save(user);
+
+  //   return { message: this.authService.i18n.t("events.account_verified_successfully") };
+  // }
 
   @Post('resend-otp')
 async resendOtp(@Body() { email }: { email: string }) {
