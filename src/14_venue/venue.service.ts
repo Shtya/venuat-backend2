@@ -241,7 +241,7 @@ async getAllByVendor(
 
     // ✅ جلب القاعات المشابهة بناءً على نفس `occasion_id`
     const similarVenues = await this.venueRepository.find({
-      where: { occasion: { id: venue.occasion.id }, id: Not(id) }, // استثناء القاعة الحالية
+      where: { occasion: { id: venue?.occasion?.id }, id: Not(id) }, // استثناء القاعة الحالية
       take: 3,
       relations: ['property', 'venueGalleries', 'property.city', 'property.city.country', 'ratings'],
       order: { visitCount: 'DESC' },
