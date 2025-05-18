@@ -60,6 +60,14 @@ export class ReservationController   {
     return this.reservationService.findUserReservations(id);
   }
 
+
+  @Get(':id/owner-venue')
+  @UseGuards(AuthGuard)
+  @Permissions(EPermissions.RESERVATIONS_READ)
+  findOneVenueEmail(@Param('id') id: number) {
+    return this.reservationService.findOneVenueEmail(id);
+  }
+
   @Delete(':id')
   @UseGuards(AuthGuard)
   @Permissions(EPermissions.RESERVATIONS_DELETE)

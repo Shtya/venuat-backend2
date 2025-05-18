@@ -38,7 +38,6 @@ export class UserController {
   @Permissions(EPermissions.USERS_READ)
   async findAll(@Query() query  ) {
     const { page, limit, search, sortBy, sortOrder, ...restQueryParams }  = query  ;
-    
 
     return this.userService.FIND(
       'user',
@@ -50,8 +49,14 @@ export class UserController {
       ["password","otpToken","otpExpire"],        // exclude some fields
       ['role', 'reservations'],                   // Relations 
       ["full_name" ,"email" ,"phone" ,"status" ], // search parameters
-      restQueryParams                             // search with fields
+      restQueryParams,                             // search with fields
+      false,
+      undefined,
+      undefined,
+      undefined,
+      "user"     
     );
+
   }
 
 
@@ -61,8 +66,7 @@ export class UserController {
   async findAllVendors(@Query() query  ) {
     const { page, limit, search  , sortBy, sortOrder, ...restQueryParams }  = query  ;
     
-
-    const data = await this.userService.FIND(
+    return this.userService.FIND(
       'user',
       search ,
       page,
@@ -72,15 +76,13 @@ export class UserController {
       ["password","otpToken","otpExpire"],        // exclude some fields
       ['role', 'reservations'],                   // Relations 
       ["full_name" ,"email" ,"phone" ,"status" ], // search parameters
-      restQueryParams                             // search with fields
+      restQueryParams,                             // search with fields
+      false,
+      undefined,
+      undefined,
+      undefined,
+      "vendor"     
     );
-
-    return {
-      limit: data.limit,
-      countRecored: data.countRecored,
-      page: data.page,
-      data: data.data.filter(e => e.role?.name == "vendor" )
-    }
   }
 
   

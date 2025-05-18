@@ -75,7 +75,8 @@ export class BaseService<T> {
      customRelations?: boolean,
      status?: string ,
      occasion?: number | number[],
-     relationSearchFields?: { [relation: string]: string[]}
+     relationSearchFields?: { [relation: string]: string[]},
+    roleName?: string, // ✅ أضف هذا السطر
     ) {
 
 
@@ -217,6 +218,15 @@ export class BaseService<T> {
         }
       }
 
+
+    //! custom condition 
+    if (roleName) {
+      if (!relations?.includes('role')) {
+        throw new BadRequestException('To filter by role.name, you must include "role" in the relations array.');
+      }
+      query.andWhere('role.name = :roleName', { roleName });
+    }
+
     //! Fetch data
     const [data, total] = (await query.getManyAndCount()) as any;
 
@@ -231,12 +241,6 @@ export class BaseService<T> {
         fieldsExclude.forEach(field => delete item[field]);
       });
     }
-
-
-  
-    
-
-
 
 
     return { limit: limitNumber, countRecored: total, page: pageNumber, data };

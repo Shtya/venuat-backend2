@@ -105,4 +105,20 @@ export class ReservationService extends BaseService<Reservation> {
 
     return reservations;
   }
+
+
+
+  async findOneVenueEmail (id) {
+        const reservations = await this.reservationRepo
+      .createQueryBuilder('reservation')
+      .leftJoinAndSelect('reservation.user', 'user')
+      .leftJoinAndSelect('reservation.venue', 'venue')
+      .leftJoinAndSelect('venue.property', 'property')
+      .leftJoinAndSelect('property.vendor', 'vendor')
+
+      .where('vendor.id = :userId', { userId: id })
+      .getMany();
+
+    return reservations;
+  }
 }
