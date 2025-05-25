@@ -24,7 +24,4 @@ export class VenuePeriod {
 
   @Column("text", { array: true, default: () => 'ARRAY[]::text[]' })
   booked_dates: string[]; 
-
-  
-
 }

@@ -7,9 +7,11 @@ import { VenuePackageEquipment } from 'entity/venue/venue_package_equipment.enti
 import {VenuePackageService as Veneu_package_service } from"entity/venue/venue_package_service.entity"
 import { Equipment } from 'entity/venue/equipment.entity';
 import { Service } from 'entity/venue/service.entity';
+import { VenuePeriod } from 'entity/venue/venue_period.entity';
+import { Reservation } from 'entity/reservation/reservation.entity';
 
 @Module({
-  imports : [TypeOrmModule.forFeature([VenuePackage , Equipment , Service  , VenuePackageEquipment , Veneu_package_service])] ,
+  imports : [TypeOrmModule.forFeature([VenuePackage , Reservation , VenuePeriod , Equipment , Service  , VenuePackageEquipment , Veneu_package_service])] ,
   controllers: [VenuePackageController],
   providers: [VenuePackageService],
 })

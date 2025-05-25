@@ -24,8 +24,8 @@ export class VenueService extends BaseService<Venue> {
     private featureRepository: Repository<Feature>,
     @InjectRepository(VenueFeature)
     private venueFeatureRepository: Repository<VenueFeature>,
-    @InjectRepository(Property) private propertyRepository: Repository<Property> ,
-    @InjectRepository(VenuePackage) private venuePackageRepository: Repository<VenuePackage> ,
+    @InjectRepository(Property) private propertyRepository: Repository<Property>,
+    @InjectRepository(VenuePackage) private venuePackageRepository: Repository<VenuePackage>
   ) {
     super(venueRepository);
   }
@@ -33,16 +33,15 @@ export class VenueService extends BaseService<Venue> {
   public relations: string[] = ['occasion', 'ratings', 'venueGalleries'];
   public relationsOne: string[] = ['occasion', 'ratings', 'property', 'property.city', 'property.city.country', 'venueGalleries', 'venueFAQs', 'venuePackages', 'venueServices', 'venueServices.service', 'venueEquipments', 'venueEquipments.equipment', 'venueFeatures', 'venueFeatures.feature'];
 
-
-async getAllByVendor(
+  async getAllByVendor(
     vendorId: number,
     query: {
       page: string;
       limit: string;
       sortBy: string;
       sortOrder: 'ASC' | 'DESC';
-    },
-  ){
+    }
+  ) {
     // Parse query parameters to numbers, fallback to defaults if invalid
     const page = isNaN(Number(query.page)) ? 1 : Math.max(1, Number(query.page));
     const limit = isNaN(Number(query.limit)) ? 10 : Math.max(1, Number(query.limit));
@@ -72,9 +71,6 @@ async getAllByVendor(
       data,
     };
   }
-
-
-
 
   async createCustom(dto: CreateVenueDto): Promise<Venue> {
     dto.occasion && (await checkFieldExists(this.occasionTypeRepository, { id: dto.occasion }, this.i18n.t('events.venue.occasion_type_not_found'), true)); //!'Occasion type does not exist'
@@ -294,72 +290,18 @@ async getAllByVendor(
   }
 
   async findOneReservationVenue(id, packageId?: number) {
-    const Package = packageId ?  await this.venuePackageRepository.findOne({where : { id: packageId} , relations : ["services" , "services.service" , "equipments", "equipments.equipment"] }) : null
+    const relations = packageId ? ['venueGalleries', 'venuePackages'] : ['venueGalleries', 'venueServices', 'venueServices.service', 'venueEquipments', 'venueEquipments.equipment', 'venuePackages'];
+
+    const Package = packageId ? await this.venuePackageRepository.findOne({ where: { id: packageId }, relations: ['services', 'periods', 'services.service', 'equipments', 'equipments.equipment'] }) : null;
     const venue = await this.venueRepository.findOne({
       where: { id },
-      relations: [
-        "venueGalleries",
-        'venueServices',
-        'venueServices.service',
-        'venueEquipments',
-        'venueEquipments.equipment',
-        'venuePackages',
-        // "venueFeatures" , "venueFeatures.feature",
-      ],
+      relations,
     });
 
-    if (!venue) {
-      throw new NotFoundException(this.i18n.t('events.record_not_found', { args: { id } }));
-    }
-
-    let totalPrice = venue.price || 0;
-    let additionalServicesPrice = 0;
-    let additionalEquipmentsPrice = 0;
-
-    //! package
-
-    if (venue.venuePackages && venue.venuePackages.length > 0) {
-      
-        const selectedPackage = packageId && venue.venuePackages.find(pkg => pkg.id === packageId);
-
-        if (selectedPackage) {
-          const packagePrice = selectedPackage.package_price;
-          totalPrice += packagePrice > venue?.price ? packagePrice - venue?.price : venue?.price - packagePrice;
-          additionalServicesPrice = Package?.equipments?.reduce((sum, equipment) => sum + (equipment.price || 0) * (equipment.count || 1), 0)
-          additionalEquipmentsPrice = Package?.services?.reduce((sum, service) => sum + (service.price || 0) * (service.count || 1), 0)
-        }
-        else {
-          //! Add service prices
-          if (venue.venueServices && venue.venueServices.length > 0) {
-            let calc = venue.venueServices.reduce((sum, service) => sum + (service.price || 0) * (service.count ), 0);
-            additionalServicesPrice = calc;
-            totalPrice += calc;
-          }
-  
-          //! Add equipment prices
-          if (venue.venueEquipments && venue.venueEquipments.length > 0) {
-            let calc = venue.venueEquipments.reduce((sum, equipment) => sum + (equipment.price || 0) * (equipment.count ), 0);
-            additionalEquipmentsPrice = calc;
-            totalPrice += calc;
-          }
-        }
-
-      
-      
-      
-    }
-
-
-    
+    if (!venue) throw new NotFoundException(this.i18n.t('events.record_not_found', { args: { id } }));
 
     return {
-      venue: {
-        ...venue,
-        additionalServicesPrice: additionalServicesPrice.toFixed(2),
-        additionalEquipmentsPrice: additionalEquipmentsPrice.toFixed(2),
-        totalPrice: totalPrice.toFixed(2),
-        totalPriceWithVAT: (totalPrice + (totalPrice * 0.15)).toFixed(2),
-      },
+      venue,
       package: Package,
     };
   }

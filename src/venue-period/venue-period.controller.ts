@@ -22,8 +22,9 @@ export class VenuePeriodController {
     @Param('venueId') venueId: number,
     @Query('from') from: string,
     @Query('to') to: string,
+    @Query('packageId') packageId: string,
   ) {
-    return this.service.findPeriodsInRange(venueId, from, to);
+    return this.service.findPeriodsInRange(venueId, from, to , packageId);
   }
 
 

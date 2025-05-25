@@ -88,6 +88,7 @@ export class UserController {
   
 
   @Get('users/me')
+  @UseGuards(AuthGuard)
   async getMe(@Req() request: Request) {
     return this.userService.getMe(request);
   }

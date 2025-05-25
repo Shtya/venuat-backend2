@@ -7,7 +7,7 @@ import { User } from 'entity/user/user.entity';
 import { Venue } from 'entity/venue/venue.entity';
 import { VenuePackage } from 'entity/venue/venue_package.entity';
 import { VenuePeriod } from 'entity/venue/venue_period.entity';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { checkFieldExists } from 'utils/checkFieldExists';
 
 @Injectable()
@@ -32,12 +32,14 @@ export class ReservationService extends BaseService<Reservation> {
     }
 
     const periodIds = Object.values(dto.periods);
-    const periods = await this.venuePeriodRepo.findByIds(periodIds);
+    const periods = await this.venuePeriodRepo.find({ where: { id: In(periodIds) } });
 
-    if (periods.length !== periodIds.length) {
-      const foundIds = periods.map(p => p.id);
-      const missing = periodIds.filter((id: any) => !foundIds.includes(id));
-      throw new BadRequestException(` period id (${missing.join(', ')}) doens't exist `);
+    const foundIds = periods.map(p => p.id);
+
+    const missing = periodIds.filter((id: any) => !foundIds.includes(id));
+
+    if (missing.length > 0) {
+      throw new BadRequestException(`Period ID(s) [${missing.join(', ')}] do not exist for this venue.`);
     }
 
     let conflicts = [];
@@ -69,11 +71,11 @@ export class ReservationService extends BaseService<Reservation> {
         .execute();
     }
 
-    
-    const reservation: any = this.reservationRepo.create(dto);
+    const reservation: any = this.reservationRepo.create({
+      ...dto,
+    });
     reservation.period_details = periods;
     const savedReservation = await this.reservationRepo.save(reservation);
-
 
     return {
       ...savedReservation,
@@ -82,34 +84,13 @@ export class ReservationService extends BaseService<Reservation> {
   }
 
   async findUserReservations(id) {
-    const reservations = await this.reservationRepo
-      .createQueryBuilder('reservation')
-      .leftJoinAndSelect('reservation.user', 'user')
-      .leftJoinAndSelect('reservation.package', 'package')
-
-      .leftJoinAndSelect('package.services', 'services')
-      .leftJoinAndSelect('services.service', 'service')
-      .leftJoinAndSelect('package.equipments', 'equipments')
-      .leftJoinAndSelect('equipments.equipment', 'equipment')
-
-      .leftJoinAndSelect('reservation.venue', 'venue')
-
-      .leftJoinAndSelect('venue.venueServices', 'venueServices')
-      .leftJoinAndSelect('venueServices.service', 'venueService')
-
-      .leftJoinAndSelect('venue.venueEquipments', 'venueEquipments')
-      .leftJoinAndSelect('venueEquipments.equipment', 'venueEquipment')
-
-      .where('user.id = :userId', { userId: id })
-      .getMany();
+    const reservations = await this.reservationRepo.find({ where: { user: id }, relations: ['venue'] });
 
     return reservations;
   }
 
-
-
-  async findOneVenueEmail (id) {
-        const reservations = await this.reservationRepo
+  async findOneVenueEmail(id) {
+    const reservations = await this.reservationRepo
       .createQueryBuilder('reservation')
       .leftJoinAndSelect('reservation.user', 'user')
       .leftJoinAndSelect('reservation.venue', 'venue')

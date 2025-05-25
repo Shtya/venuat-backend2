@@ -1,6 +1,4 @@
-import { BadRequestException, Body, Controller, Param, Patch, Post, UnauthorizedException, UseGuards } from '@nestjs/common';
-import { AuthGuard } from './auth.guard';
-import { Roles } from 'decorators/role.decorator';
+import { BadRequestException, Body, Controller, Param, Patch, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'dto/user.dto';
 import { Role } from 'entity/permission/role.entity';
@@ -13,35 +11,29 @@ import { User } from 'entity/user/user.entity';
 import * as argon from 'argon2';
 import { FirebaseService } from 'src/firebase/firebase.service';
 
-
-
 @Controller('auth')
 export class AuthController {
   constructor(
     @InjectRepository(Role) private readonly roleRepository: Repository<Role>,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
-    private readonly authService: AuthService ,
+    private readonly authService: AuthService,
     private firebaseService: FirebaseService
   ) {}
 
-
-
   @Post('google-login')
-async googleLogin(@Body('token') token: string) {
-  return this.authService.googleLogin(token);
-}
+  async googleLogin(@Body('token') token: string) {
+    return this.authService.googleLogin(token);
+  }
 
-@Post('facebook-login')
-async facebookLogin(@Body('token') token: string) {
-  return this.authService.facebookLogin(token);
-}
+  @Post('facebook-login')
+  async facebookLogin(@Body('token') token: string) {
+    return this.authService.facebookLogin(token);
+  }
 
-@Post('apple-login')
-async appleLogin(@Body('token') token: string) {
-  return this.authService.appleLogin(token);
-}
-
-
+  @Post('apple-login')
+  async appleLogin(@Body('token') token: string) {
+    return this.authService.appleLogin(token);
+  }
 
   @Post('signup')
   async signup(@Body() dto: CreateUserDto) {
@@ -59,7 +51,6 @@ async appleLogin(@Body('token') token: string) {
     // Hash the password
     const hash = await argon.hash(dto.password);
 
-
     // Generate a 6-digit OTP
     const otpCode = randomInt(100000, 999999);
     const otpExpire = dayjs().add(5, 'minutes').toDate(); // OTP expires in 10 minutes
@@ -67,126 +58,101 @@ async appleLogin(@Body('token') token: string) {
     // Create user but keep status as "pending"
     const user = this.userRepository.create({
       password: hash,
-      role : {...role} ,
+      role: { ...role },
       otpToken: otpCode.toString(),
       otpExpire,
-      status: dto.status || 'pending', 
-      full_name :dto?.full_name,
-      email :dto?.email,
-      phone :dto?.phone
+      status: dto.status || 'pending',
+      full_name: dto?.full_name,
+      email: dto?.email,
+      phone: dto?.phone,
     });
 
     const savedUser = await this.userRepository.save(user);
 
-    if(dto.status) return { message: this.authService.i18n.t("events.success"), user: savedUser };
+    if (dto.status) return { message: this.authService.i18n.t('events.success'), user: savedUser };
     // Send OTP via email
-    await this.authService.mailService.sendOTPEmail(savedUser.email, otpCode.toString() , "verify email");
+    await this.authService.mailService.sendOTPEmail(savedUser.email, otpCode.toString(), 'verify email');
 
-    return { message: this.authService.i18n.t("events.otp_sent2"), email: savedUser.email };
+    return { message: this.authService.i18n.t('events.otp_sent2'), email: savedUser.email };
   }
-
 
   @Post('verify-otp')
-async verifyOtp(@Body() { email, otp }: { email: string; otp: string }) {
-  const user = await this.userRepository.findOne({ where: { email }, relations: ['role'] });
+  async verifyOtp(@Body() { email, otp }: { email: string; otp: string }) {
+    const user = await this.userRepository.findOne({ where: { email }, relations: ['role'] });
 
+    if (!user) {
+      throw new BadRequestException(this.authService.i18n.t('events.user_not_found'));
+    }
 
-  if (!user) {
-    throw new BadRequestException(this.authService.i18n.t("events.user_not_found"));
+    if (user.status !== 'pending') {
+      throw new BadRequestException(this.authService.i18n.t('events.user_already_verified'));
+    }
+
+    if (user.otpToken !== otp || dayjs().isAfter(user.otpExpire)) {
+      throw new BadRequestException(this.authService.i18n.t('events.invalid_or_expired_otp'));
+    }
+
+    // Update user status to active and clear OTP fields
+    user.status = 'active';
+    user.otpToken = null;
+    user.otpExpire = null;
+
+    // Ensure user has role
+    if (!user.role) {
+      const defaultRole = await this.roleRepository.findOne({ where: { name: 'user' } });
+      if (!defaultRole) throw new Error('Default user role not found');
+      user.role = defaultRole;
+    }
+
+    await this.userRepository.save(user);
+
+    // Generate tokens
+    const accessToken = await this.authService.generateAccessToken(user);
+    const refreshToken = await this.authService.generateRefreshToken(user);
+
+    // Return user info without password
+    const userWithoutPassword = await this.userRepository.findOne({
+      where: { id: user.id },
+      relations: ['role'],
+      select: ['id', 'phone', 'role', 'status', 'email', 'full_name', 'created_at', 'updated_at'],
+    });
+
+    return {
+      message: this.authService.i18n.t('events.account_verified_successfully'),
+      ...userWithoutPassword,
+      accessToken,
+      refreshToken,
+    };
   }
-
-  if (user.status !== 'pending') {
-    throw new BadRequestException(this.authService.i18n.t("events.user_already_verified"));
-  }
-
-  if (user.otpToken !== otp || dayjs().isAfter(user.otpExpire)) {
-    throw new BadRequestException(this.authService.i18n.t("events.invalid_or_expired_otp"));
-  }
-
-  // Update user status to active and clear OTP fields
-  user.status = 'active';
-  user.otpToken = null;
-  user.otpExpire = null;
-
-  // Ensure user has role
-  if (!user.role) {
-    const defaultRole = await this.roleRepository.findOne({ where: { name: 'user' } });
-    if (!defaultRole) throw new Error('Default user role not found');
-    user.role = defaultRole;
-  }
-
-  await this.userRepository.save(user);
-
-  // Generate tokens
-  const accessToken = await this.authService.generateAccessToken(user);
-  const refreshToken = await this.authService.generateRefreshToken(user);
-
-  // Return user info without password
-  const userWithoutPassword = await this.userRepository.findOne({
-    where: { id: user.id },
-    relations: ['role'],
-    select: ['id', 'phone', 'role', 'status', 'email', 'full_name', 'created_at', 'updated_at'],
-  });
-
-  return {
-    message: this.authService.i18n.t("events.account_verified_successfully"),
-    ...userWithoutPassword,
-    accessToken,
-    refreshToken,
-  };
-}
-
-
-  // @Post('verify-otp')
-  // async verifyOtp(@Body() { email, otp }: { email: string; otp: string }) {
-  //   const user = await this.userRepository.findOne({ where: { email } });
-
-  //   if (!user) throw new BadRequestException(this.authService.i18n.t("events.user_not_found"));
-  //   if (user.status !== 'pending') throw new BadRequestException(this.authService.i18n.t("events.user_already_verified"));
-
-  //   // Check OTP validity
-  //   if (user.otpToken !== otp || dayjs().isAfter(user.otpExpire)) {
-  //     throw new BadRequestException(this.authService.i18n.t("events.invalid_or_expired_otp"));
-  //   }
-
-  //   // Update user status to active and clear OTP fields
-  //   user.status = 'active';
-  //   user.otpToken = null;
-  //   user.otpExpire = null;
-  //   await this.userRepository.save(user);
-
-  //   return { message: this.authService.i18n.t("events.account_verified_successfully") };
-  // }
 
   @Post('resend-otp')
-async resendOtp(@Body() { email }: { email: string }) {
-  // Find the user by email
-  const user = await this.userRepository.findOne({ where: { email } });
+  async resendOtp(@Body() { email }: { email: string }) {
+    // Find the user by email
+    const user = await this.userRepository.findOne({ where: { email } });
 
-  if (!user) {
-    throw new BadRequestException(this.authService.i18n.t("events.user_not_found_repeat"));
+    if (!user) {
+      throw new BadRequestException(this.authService.i18n.t('events.user_not_found_repeat'));
+    }
+
+    if (user.status !== 'pending') {
+      throw new BadRequestException(this.authService.i18n.t('events.user_already_verified_or_invalid_request'));
+    }
+
+    // Generate a new OTP and expiry time
+    const otpCode = randomInt(100000, 999999);
+    const otpExpire = dayjs().add(5, 'minutes').toDate(); // OTP expires in 5 minutes
+
+    // Update the OTP and expiry in the database
+    user.otpToken = otpCode.toString();
+    user.otpExpire = otpExpire;
+
+    await this.userRepository.save(user);
+
+    // Send OTP to the user's email
+    await this.authService.mailService.sendOTPEmail(user.email, otpCode.toString(), 'Verify email');
+
+    return { message: this.authService.i18n.t('events.new_otp_sent') };
   }
-
-  if (user.status !== 'pending') {
-    throw new BadRequestException(this.authService.i18n.t("events.user_already_verified_or_invalid_request"));
-  }
-
-  // Generate a new OTP and expiry time
-  const otpCode = randomInt(100000, 999999);
-  const otpExpire = dayjs().add(5, 'minutes').toDate(); // OTP expires in 5 minutes
-
-  // Update the OTP and expiry in the database
-  user.otpToken = otpCode.toString();
-  user.otpExpire = otpExpire;
-
-  await this.userRepository.save(user);
-
-  // Send OTP to the user's email
-  await this.authService.mailService.sendOTPEmail(user.email, otpCode.toString(), "Verify email");
-
-  return { message: this.authService.i18n.t("events.new_otp_sent") };
-}
-
 
   @Post('signin')
   signin(@Body() dto) {
@@ -198,9 +164,6 @@ async resendOtp(@Body() { email }: { email: string }) {
     return this.authService.forgotPassword(email);
   }
 
-
-
-
   // ! For password
   @Post('check-otp')
   async checkOtp(@Body() dto) {
@@ -208,32 +171,29 @@ async resendOtp(@Body() { email }: { email: string }) {
   }
 
   @Post('resend-forgot-password-otp')
-async resendForgotPasswordOtp(@Body() { email }: { email: string }) {
-  // Find the user by email
-  const user = await this.userRepository.findOne({ where: { email } });
+  async resendForgotPasswordOtp(@Body() { email }: { email: string }) {
+    // Find the user by email
+    const user = await this.userRepository.findOne({ where: { email } });
 
-  if (!user) {
-    throw new BadRequestException(this.authService.i18n.t("events.user_not_found_repeat"));
+    if (!user) {
+      throw new BadRequestException(this.authService.i18n.t('events.user_not_found_repeat'));
+    }
+
+    // Generate a new OTP and expiry time
+    const otpCode = randomInt(100000, 999999);
+    const otpExpire = dayjs().add(5, 'minutes').toDate();
+
+    // Update the OTP and expiry in the database
+    user.otpToken = otpCode.toString();
+    user.otpExpire = otpExpire;
+
+    await this.userRepository.save(user);
+
+    // Send OTP to the user's email
+    await this.authService.mailService.sendOTPEmail(user.email, otpCode.toString(), 'Reset Password');
+
+    return { message: this.authService.i18n.t('events.new_otp_sent') };
   }
-
-  // Generate a new OTP and expiry time
-  const otpCode = randomInt(100000, 999999);
-  const otpExpire = dayjs().add(5, 'minutes').toDate();  
-
-  // Update the OTP and expiry in the database
-  user.otpToken = otpCode.toString();
-  user.otpExpire = otpExpire;
-
-  await this.userRepository.save(user);
-
-  // Send OTP to the user's email
-  await this.authService.mailService.sendOTPEmail(user.email, otpCode.toString(), "Reset Password");
-
-  return { message: this.authService.i18n.t("events.new_otp_sent") };
-}
-
-
-
 
   @Post('reset-password')
   async resetPassword(@Body() dto) {

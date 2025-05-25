@@ -56,7 +56,7 @@ export class AuthGuard implements CanActivate {
       if (error instanceof ForbiddenException) {
         throw error;
       }
-      throw new UnauthorizedException(this.i18n.t('events.invalid_or_expired_token'));
+      throw new UnauthorizedException(this.i18n.t('events.refresh_token_expired'));
     }
 
 

@@ -1,4 +1,4 @@
-import { IsDate, IsNotEmpty, IsNumber, IsObject } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsDate, IsNotEmpty, IsNumber, IsObject } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
 
@@ -26,7 +26,11 @@ export class CreateVenuePackageDto {
 
 
   venue_price:number
-  offer_price_during_period:number
+
+  @IsArray({ message: "events.periodIdsMustBeArray" })
+  @ArrayNotEmpty({ message: "events.periodIdsCannotBeEmpty" })
+  @IsNumber({}, { each: true, message: "events.eachPeriodIdMustBeNumber" })
+  period_ids: number[];
 }
 
 

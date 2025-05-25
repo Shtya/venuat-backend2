@@ -33,13 +33,9 @@ export class PackagePriceUpdate {
     
     
     const venuePackage = await this.venuePackageRepo.findOne({ where: { id: packageId } });
-    const venue :any = await this.venueRepo.find({ where: { id: venuePackage.venue_id } });
+    const totalPrice = totalServicePrice + totalEquipmentPrice + +venuePackage?.package_main_price;
 
-   const venuePrice = venue?.[0].price ?? 0; 
 
-   const totalPrice = totalServicePrice + totalEquipmentPrice + venuePrice;
-
-   // Update the venue package with the calculated price
-   await this.venuePackageRepo.update(packageId, { package_price: totalPrice });
+    await this.venuePackageRepo.update(packageId, { package_price: totalPrice });
   }
 }

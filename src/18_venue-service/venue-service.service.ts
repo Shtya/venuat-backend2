@@ -138,7 +138,6 @@ export class VenueServiceService {
     }
 
     const serviceName = service?.name?.en || `#${service.id}`;
-    // console.log(serviceName)
 
     const existingVenueService = venue.venueServices.find(
       (vs) => vs?.service?.id === service.id,
