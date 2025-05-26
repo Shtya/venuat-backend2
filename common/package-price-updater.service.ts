@@ -4,7 +4,6 @@ import { VenuePackage } from 'entity/venue/venue_package.entity';
 import { VenuePackageEquipment } from 'entity/venue/venue_package_equipment.entity';
 import { VenuePackageService } from 'entity/venue/venue_package_service.entity';
 import { Repository } from 'typeorm';
-import { Venue } from 'entity/venue/venue.entity'; 
 
 @Injectable()
 export class PackagePriceUpdate {
@@ -17,9 +16,6 @@ export class PackagePriceUpdate {
 
     @InjectRepository(VenuePackageEquipment)
     private readonly venuePackageEquipmentRepo: Repository<VenuePackageEquipment>,
-
-    @InjectRepository(Venue)  
-    private readonly venueRepo: Repository<Venue>,
   ) {}
 
   async updatePackagePrice(packageId: number): Promise<void> {
@@ -32,8 +28,14 @@ export class PackagePriceUpdate {
     const totalEquipmentPrice = equipments.reduce((sum, equipment) => sum + (Number(equipment.price) * equipment.count), 0);
     
     
-    const venuePackage = await this.venuePackageRepo.findOne({ where: { id: packageId } });
-    const totalPrice = totalServicePrice + totalEquipmentPrice + +venuePackage?.package_main_price;
+    const venuePackage = await this.venuePackageRepo.findOne({ where: { id: packageId } , relations : ['periods'] });
+    
+    const minPeriodPrice = venuePackage.periods.reduce((min, period) => {
+      return period.package_price < min ? period.package_price : min;
+    }, Number.POSITIVE_INFINITY);
+
+
+    const totalPrice = totalServicePrice + totalEquipmentPrice + +minPeriodPrice;
 
 
     await this.venuePackageRepo.update(packageId, { package_price: totalPrice });

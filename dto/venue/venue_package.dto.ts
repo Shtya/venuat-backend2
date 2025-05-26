@@ -1,38 +1,51 @@
-import { ArrayNotEmpty, IsArray, IsDate, IsNotEmpty, IsNumber, IsObject } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsDate,
+  IsNotEmpty,
+  IsNumber,
+  IsObject,
+  ValidateNested
+} from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
 
+class PeriodItemDto {
+  @IsNumber({}, { message: 'Each period must have a numeric ID.' })
+  id: number;
+
+  @IsNumber({}, { message: 'Each period must have a numeric price.' })
+  price: number;
+}
 
 export class CreateVenuePackageDto {
-  @IsNotEmpty({ message: "events.venueIdRequired" }) // معرف القاعة مطلوب
-  @IsNumber({}, { message: "events.venueIdMustBeNumber" }) // يجب أن يكون معرف القاعة رقمًا
+  @IsNotEmpty({ message: "Venue ID is required." })
+  @IsNumber({}, { message: "Venue ID must be a number." })
   venue_id: number;
 
-  @IsNotEmpty({ message: "events.packageNameRequired" }) // اسم الباقة مطلوب
-  @IsObject({ message: "events.packageNameMustBeObject" }) // يجب أن يكون اسم الباقة كائنًا (للدعم متعدد اللغات)
+  @IsNotEmpty({ message: "Package name is required." })
+  @IsObject({ message: "Package name must be an object for multilingual support." })
   package_name: object;
 
-  package_price : number ;
+  package_price: number;
 
-  @IsNotEmpty({ message: "events.startDateRequired" })
-  @IsDate({ message: "events.startDateMustBeDate" })
+  @IsNotEmpty({ message: "Start date is required." })
+  @IsDate({ message: "Start date must be a valid date." })
   @Type(() => Date)
   start_date: Date;
 
-  @IsNotEmpty({ message: "events.endDateRequired" })
-  @IsDate({ message: "events.endDateMustBeDate" })
+  @IsNotEmpty({ message: "End date is required." })
+  @IsDate({ message: "End date must be a valid date." })
   @Type(() => Date)
   end_date: Date;
 
+  venue_price: number;
 
-  venue_price:number
-
-  @IsArray({ message: "events.periodIdsMustBeArray" })
-  @ArrayNotEmpty({ message: "events.periodIdsCannotBeEmpty" })
-  @IsNumber({}, { each: true, message: "events.eachPeriodIdMustBeNumber" })
-  period_ids: number[];
+  @IsArray({ message: 'Period list must be an array.' })
+  @ArrayNotEmpty({ message: 'At least one period must be selected.' })
+  @ValidateNested({ each: true })
+  @Type(() => PeriodItemDto)
+  periods: PeriodItemDto[];
 }
-
-
 
 export class UpdateVenuePackageDto extends PartialType(CreateVenuePackageDto) {}

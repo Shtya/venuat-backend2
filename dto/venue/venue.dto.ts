@@ -50,9 +50,6 @@ export class CreateVenueDto {
   @IsNumber({}, { message: 'events.venue_area_invalid' })
   area?: number;
 
-  @IsOptional()
-  @IsNumber({}, { message: 'events.price_must_be_Number' })
-  price?: number;
 
   @IsOptional()
   @IsNumber({}, { message: 'events.venue_max_capacity_invalid' })

@@ -6,12 +6,14 @@ import { VenuePeriod } from 'entity/venue/venue_period.entity';
 import { Repository } from 'typeorm';
 import { format, addDays, differenceInCalendarDays } from 'date-fns';
 import { VenuePackage } from 'entity/venue/venue_package.entity';
+import { Venue } from 'entity/venue/venue.entity';
 
 @Injectable()
 export class VenuePeriodService {
   constructor(
     @InjectRepository(VenuePeriod) private periodRepo: Repository<VenuePeriod>,
-    @InjectRepository(VenuePackage) private packageRepo: Repository<VenuePackage>
+    @InjectRepository(VenuePackage) private packageRepo: Repository<VenuePackage>,
+    @InjectRepository(Venue) private venueRepo: Repository<Venue>
   ) {}
 
   // ...
@@ -23,7 +25,6 @@ export class VenuePeriodService {
 
   async create(venueId: number, dto: CreateVenuePeriodDto[]) {
     for (const periodDto of dto) {
-      // Check for overlapping periods on the same venue and day
       const existingPeriods = await this.periodRepo.find({
         where: {
           venue: { id: venueId },
@@ -34,17 +35,14 @@ export class VenuePeriodService {
       const newFrom = this.timeStringToMinutes(periodDto.from);
       const newTo = this.timeStringToMinutes(periodDto.to);
 
-      // Check for exact matches or overlaps with existing periods
       const isExistingPeriod = existingPeriods.some(period => {
         const existingFrom = this.timeStringToMinutes(period.from);
         const existingTo = this.timeStringToMinutes(period.to);
 
-        // Check if the exact period exists (exact match)
         if (newFrom === existingFrom && newTo === existingTo) {
           return true;
         }
 
-        // Check for overlap (new period overlaps with existing period)
         return newFrom < existingTo && newTo > existingFrom;
       });
 
@@ -52,9 +50,18 @@ export class VenuePeriodService {
         throw new BadRequestException(`Time period ${periodDto.from} - ${periodDto.to} overlaps with or is the same as an existing period on ${periodDto.day}.`);
       }
 
-      // Create and save each period
       const period = this.periodRepo.create({ ...periodDto, venue: { id: venueId } });
       await this.periodRepo.save(period);
+    }
+
+    const allPeriods = await this.periodRepo.find({ where: { venue: { id: venueId } } });
+
+    const minPrice = allPeriods.reduce((min, period) => {
+      return period.price < min ? period.price : min;
+    }, Number.POSITIVE_INFINITY);
+
+    if (isFinite(minPrice)) {
+      await this.venueRepo.update(venueId, { price: minPrice });
     }
 
     return { message: 'Periods created successfully.' };
@@ -123,16 +130,6 @@ export class VenuePeriodService {
   }
 
   //   async findPeriodsInRange(venueId: number, from: string, to: string , packageId: string )  {
-  //     const fromDate = new Date(from);
-  //     const toDate = new Date(to);
-
-  //     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-  //       throw new BadRequestException('Invalid date format');
-  //     }
-
-  //     if (fromDate > toDate) {
-  //       throw new BadRequestException('"from" date cannot be after "to" date');
-  //     }
 
   //     const allPeriods = await this.periodRepo.find({
   //       where: { venue: { id: venueId } },
@@ -172,62 +169,59 @@ export class VenuePeriodService {
   //     return result;
   //   }
 
-  async findPeriodsInRange(
-  venueId: number,
-  from: string,
-  to: string,
-  packageId?: string,
-) {
-  const fromDate = new Date(from);
-  const toDate = new Date(to);
+  async findPeriodsInRange(venueId: number, from: string, to: string, packageId?: string) {
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
 
-  if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-    throw new BadRequestException('Invalid date format');
-  }
-
-  if (fromDate > toDate) {
-    throw new BadRequestException('"from" date cannot be after "to" date');
-  }
-
-  let allPeriods = [];
-  let packageStartDate: Date | null = null;
-  let packageEndDate: Date | null = null;
-
-  if (packageId) {
-    const packageEntity = await this.packageRepo.findOne({
-      where: { id: packageId as any },
-      relations: ['periods'],
-    });
-
-    if (!packageEntity) {
-      throw new NotFoundException('Package not found');
+    if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+      throw new BadRequestException('Invalid date format');
     }
 
-    packageStartDate = new Date(packageEntity.start_date);
-    packageEndDate = new Date(packageEntity.end_date);
+    if (fromDate > toDate) {
+      throw new BadRequestException('"from" date cannot be after "to" date');
+    }
 
-    allPeriods = packageEntity.periods;
-  }
+    let allPeriods = [];
+    let packageStartDate: Date | null = null;
+    let packageEndDate: Date | null = null;
 
-  const daysCount = differenceInCalendarDays(toDate, fromDate);
-  const result: Record<string, any[]> = {};
+    // 🎯 If packageId provided, load periods from the package
+    if (packageId) {
+      const packageEntity = await this.packageRepo.findOne({
+        where: { id: packageId as any },
+        relations: ['periods'],
+      });
 
-  for (let i = 0; i <= daysCount; i++) {
-    const date = addDays(fromDate, i);
-    const dayName = format(date, 'EEEE');
-    const dateFormatted = format(date, 'dd/MM/yyyy');
-    const key = `${dayName} : ${dateFormatted}`;
+      if (!packageEntity) {
+        throw new NotFoundException('Package not found');
+      }
 
-    if (
-      packageId &&
-      packageStartDate &&
-      packageEndDate &&
-      (date < packageStartDate || date > packageEndDate)
-    ) {
-      // خارج فترة الباكج
-      result[key] = [];
+      packageStartDate = new Date(packageEntity.start_date);
+      packageEndDate = new Date(packageEntity.end_date);
+
+      allPeriods = packageEntity.periods;
     } else {
-      // داخل فترة الباكج أو بدون باكج - نرجع كل الـ periods المناسبة لهذا اليوم
+      // 🎯 Else load periods from venue directly
+      allPeriods = await this.periodRepo.find({
+        where: { venue: { id: venueId } },
+      });
+    }
+
+    const daysCount = differenceInCalendarDays(toDate, fromDate);
+    const result: Record<string, any[]> = {};
+
+    for (let i = 0; i <= daysCount; i++) {
+      const date = addDays(fromDate, i);
+      const dayName = format(date, 'EEEE');
+      const dateFormatted = format(date, 'dd/MM/yyyy');
+      const key = `${dayName} : ${dateFormatted}`;
+
+      // ⛔️ For package, skip dates outside the package range
+      if (packageId && packageStartDate && packageEndDate && (date < packageStartDate || date > packageEndDate)) {
+        result[key] = [];
+        continue;
+      }
+
       const periodsForDay = allPeriods
         .filter(p => p.day.toLowerCase() === dayName.toLowerCase())
         .map(p => {
@@ -240,6 +234,7 @@ export class VenuePeriodService {
             from: formatTime(p.from),
             to: formatTime(p.to),
             price: p.price,
+            package_price: p.package_price || 0,
             id: p.id,
             booked_dates: p.booked_dates,
           };
@@ -247,9 +242,7 @@ export class VenuePeriodService {
 
       result[key] = periodsForDay;
     }
+
+    return result;
   }
-
-  return result;
-}
-
 }

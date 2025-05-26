@@ -35,14 +35,31 @@ export class VenuePackageService extends BaseService<VenuePackage> {
     await checkFieldExists(this.venueRepo, { id: dto.venue_id }, "venue doesn't exist.", true, 404);
     const venue = await this.venueRepo.findOne({ where: { id: dto.venue_id } });
 
-    const periods = await this.venuePeriodRepo.find({ where: { venue: { id: dto.venue_id } } });
+    // Get all periods for this venue
+    const allPeriods = await this.venuePeriodRepo.find({ where: { venue: { id: dto.venue_id } } });
 
-    const existingIds = periods.map(p => p.id);
-    const missingIds = dto.period_ids.filter(id => !existingIds.includes(id));
+    const allPeriodMap = new Map(allPeriods.map(p => [p.id, p]));
 
-    if (missingIds.length > 0) { throw new BadRequestException(`Invalid period IDs: ${missingIds.join(', ')}`); }
+    // Get selected periods with validation
+    const selectedPeriods: VenuePeriod[] = [];
 
-    dto.package_price = dto.venue_price || venue?.price || 0;
+    for (const period of dto.periods) {
+      const found = allPeriodMap.get(period.id);
+      if (!found) {
+        throw new BadRequestException(`Invalid period ID: ${period.id}`);
+      }
+
+      found.package_price = period.price;
+      selectedPeriods.push(found);
+    }
+
+        const minPeriodPrice = selectedPeriods.reduce((min, period) => {
+      return period.package_price < min ? period.package_price : min;
+    }, Number.POSITIVE_INFINITY);
+
+
+
+    dto.package_price = minPeriodPrice || 0;
 
     if (new Date(dto.start_date) >= new Date(dto.end_date)) {
       throw new BadRequestException('Start date must be before end date.');
@@ -58,8 +75,8 @@ export class VenuePackageService extends BaseService<VenuePackage> {
     // ✅ Create the package
     const venuePackage = this.venuePackageRepo.create({
       ...dto,
-      package_main_price: dto.venue_price || venue?.price || 0,
-      periods: periods,
+      // package_main_price: dto.venue_price || venue?.price || 0,
+      periods: selectedPeriods,
     });
 
     await this.venuePackageRepo.save(venuePackage);

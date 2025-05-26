@@ -22,6 +22,9 @@ export class VenuePeriod {
   @Column('double precision')
   price: number;
 
+  @Column('double precision' , {nullable : true , default : 0} )
+  package_price: number;
+
   @Column("text", { array: true, default: () => 'ARRAY[]::text[]' })
   booked_dates: string[]; 
 }

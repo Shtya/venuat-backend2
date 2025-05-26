@@ -197,43 +197,6 @@ export class VenueService extends BaseService<Venue> {
     venue.visitCount += 1;
     await this.venueRepository.save(venue);
 
-    const totalRating = venue.ratings.reduce((sum, e) => sum + +e.rating, 0);
-    const averageRating = totalRating / venue.ratings.length;
-
-    let totalPrice = venue.price || 0;
-    let packagePrice = 0;
-    let additionalServicesPrice = 0;
-    let additionalEquipmentsPrice = 0;
-
-    //! package
-    if (venue.venuePackages && venue.venuePackages.length > 0) {
-      if (packageId) {
-        const selectedPackage = venue.venuePackages.find(pkg => pkg.id === packageId);
-        if (selectedPackage) {
-          packagePrice = (selectedPackage.package_price || 0) - venue?.price;
-          totalPrice += (selectedPackage.package_price || 0) - venue?.price;
-        }
-      }
-    }
-
-    //! Add service prices
-    if (venue.venueServices && venue.venueServices.length > 0) {
-      let calc = venue.venueServices.reduce((sum, service) => sum + (service.price || 0) * (service.count || 1), 0);
-      additionalServicesPrice = calc;
-      totalPrice += calc;
-    }
-
-    //! Add equipment prices
-    if (venue.venueEquipments && venue.venueEquipments.length > 0) {
-      let calc = venue.venueEquipments.reduce((sum, equipment) => sum + (equipment.price || 0) * (equipment.count || 1), 0);
-      additionalEquipmentsPrice = calc;
-      totalPrice += calc;
-    }
-
-    //! Add 15% VAT
-    const vatRate = 0.15;
-    const vatAmount = totalPrice * vatRate;
-    const totalPriceWithVAT = totalPrice + vatAmount;
 
     // ✅ جلب القاعات المشابهة بناءً على نفس `occasion_id`
     const similarVenues = await this.venueRepository.find({
@@ -244,16 +207,7 @@ export class VenueService extends BaseService<Venue> {
     });
 
     return {
-      averageRating: Number(averageRating).toFixed(1),
-      venue: {
-        ...venue,
-        packagePrice: packagePrice.toFixed(2),
-        additionalServicesPrice: additionalServicesPrice.toFixed(2),
-        additionalEquipmentsPrice: additionalEquipmentsPrice.toFixed(2),
-        totalPriceWithVAT: totalPriceWithVAT.toFixed(2),
-        vatAmount: vatAmount.toFixed(2),
-        totalPrice: totalPrice.toFixed(2),
-      },
+      venue,
       similarVenues,
     };
   }

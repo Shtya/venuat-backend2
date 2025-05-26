@@ -20,8 +20,8 @@ export class VenuePackage {
   @Column('jsonb')
   package_name: object; // دعم تعدد اللغات
 
-  @Column('decimal', { default: 0, nullable: true })
-  package_main_price: number;
+  // @Column('decimal', { default: 0, nullable: true })
+  // package_main_price: number;
 
 
   @Column('decimal', { default: 0, nullable: true })
