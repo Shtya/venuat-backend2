@@ -55,7 +55,7 @@ export class VenuePackageController {
   @UseGuards(AuthGuard)
   @Permissions(EPermissions.VENUE_PACKAGE_UPDATE)
   update(@Param('id') id: number, @Body() dto: UpdateVenuePackageDto) {
-    return this.venuePackageService.update(id, dto);
+    return this.venuePackageService.updateCustom(id, dto);
   }
 
   @Delete(':id')

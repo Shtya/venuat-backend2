@@ -7,7 +7,7 @@ import { Equipment } from 'entity/venue/equipment.entity';
 import { Service } from 'entity/venue/service.entity';
 import { checkFieldExists } from 'utils/checkFieldExists';
 import { Venue } from 'entity/venue/venue.entity';
-import { CreateVenuePackageDto } from 'dto/venue/venue_package.dto';
+import { CreateVenuePackageDto, UpdateVenuePackageDto } from 'dto/venue/venue_package.dto';
 import { VenuePackageEquipment } from 'entity/venue/venue_package_equipment.entity';
 import { VenuePackageService as VenuePackageServiceDif } from 'entity/venue/venue_package_service.entity';
 import { VenuePeriod } from 'entity/venue/venue_period.entity';
@@ -35,7 +35,6 @@ export class VenuePackageService extends BaseService<VenuePackage> {
     await checkFieldExists(this.venueRepo, { id: dto.venue_id }, "venue doesn't exist.", true, 404);
     const venue = await this.venueRepo.findOne({ where: { id: dto.venue_id } });
 
-    // Get all periods for this venue
     const allPeriods = await this.venuePeriodRepo.find({ where: { venue: { id: dto.venue_id } } });
 
     const allPeriodMap = new Map(allPeriods.map(p => [p.id, p]));
@@ -54,8 +53,8 @@ export class VenuePackageService extends BaseService<VenuePackage> {
     }
 
         const minPeriodPrice = selectedPeriods.reduce((min, period) => {
-      return period.package_price < min ? period.package_price : min;
-    }, Number.POSITIVE_INFINITY);
+        return period.package_price < min ? period.package_price : min;
+      }, Number.POSITIVE_INFINITY);
 
 
 
@@ -89,6 +88,81 @@ export class VenuePackageService extends BaseService<VenuePackage> {
 
     return venuePackage;
   }
+
+
+  async updateCustom(id: number, dto: UpdateVenuePackageDto) {
+  const existingPackage = await this.venuePackageRepo.findOne({
+    where: { id },
+    relations: ['periods'],
+  });
+
+  if (!existingPackage) {
+    throw new NotFoundException('Package not found.');
+  }
+
+  // If venue_id is provided, validate the venue exists
+  if (dto.venue_id) {
+    const venue = await this.venueRepo.findOne({ where: { id: dto.venue_id } });
+    if (!venue) {
+      throw new NotFoundException('Venue not found.');
+    }
+    existingPackage.venue = venue;
+  }
+
+  // Validate and map periods if provided
+  if (dto.periods && dto.periods.length > 0) {
+    const allPeriods = await this.venuePeriodRepo.find({
+      where: { venue: { id: dto.venue_id || existingPackage.venue.id } },
+    });
+
+    const allPeriodMap = new Map(allPeriods.map(p => [p.id, p]));
+
+    const selectedPeriods: VenuePeriod[] = [];
+
+    for (const period of dto.periods) {
+      const found = allPeriodMap.get(period.id);
+      if (!found) {
+        throw new BadRequestException(`Invalid period ID: ${period.id}`);
+      }
+
+      found.package_price = period.price;
+      selectedPeriods.push(found);
+    }
+
+    // Update periods and calculate minimum package price
+    existingPackage.periods = selectedPeriods;
+    existingPackage.package_price = selectedPeriods.reduce((min, p) => Math.min(min, p.package_price), Number.POSITIVE_INFINITY);
+  }
+
+  // Validate dates if provided
+  if (dto.start_date && dto.end_date) {
+    const start = new Date(dto.start_date);
+    const end = new Date(dto.end_date);
+
+    if (start >= end) {
+      throw new BadRequestException('Start date must be before end date.');
+    }
+
+    if (start <= new Date()) {
+      throw new BadRequestException('The offer start date must be in the future.');
+    }
+
+    existingPackage.start_date = start;
+    existingPackage.end_date = end;
+  }
+
+  // Update multilingual package name
+  if (dto.package_name) {
+    existingPackage.package_name = dto.package_name;
+  }
+
+
+  // Save updated package
+  await this.venuePackageRepo.save(existingPackage);
+
+  return existingPackage;
+}
+
 
   countDayOccurrences(start: Date, end: Date, targetDay: string): number {
     const daysMap: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
