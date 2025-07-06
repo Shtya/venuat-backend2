@@ -164,4 +164,41 @@ export class MailService {
       html: htmlContent,
     });
   }
+
+  // mail.service.ts
+  async sendReservationNotification(
+    ownerEmail: string,
+    data: {
+      reservationId: number;
+      venueName: string;
+      dates: string;
+      userName: string;
+      totalPrice: number;
+    }
+  ) {
+    const subject = 'New Reservation Request for Your Venue';
+
+    const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #1e328b;">New Reservation Request</h2>
+      <p>Dear Venue Owner,</p>
+      
+      <p>You have received a new reservation request for <strong>${data.venueName['en']}</strong>:</p>
+      
+      <div style="background: #f5f7fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>Reservation ID:</strong> ${data.reservationId}</p>
+        <p><strong>Requested Dates:</strong> ${data.dates}</p>
+        <p><strong>Total Amount:</strong> SAR ${data.totalPrice.toFixed(2)}</p>
+      </div>
+      
+      <p>Please log in to your vendor dashboard to review and approve this reservation.</p>
+
+    </div>
+  `;
+ await this.transporter.sendMail({
+      to: ownerEmail,
+      subject,
+      html: htmlContent,
+    });
+  }
 }

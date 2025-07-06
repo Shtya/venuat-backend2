@@ -244,7 +244,7 @@ export class VenueService extends BaseService<Venue> {
   }
 
   async findOneReservationVenue(id, packageId?: number) {
-    const relations = packageId ? ['venueGalleries', 'venuePackages'] : ['venueGalleries', 'venueServices', 'venueServices.service', 'venueEquipments', 'venueEquipments.equipment', 'venuePackages'];
+    const relations = packageId ? ['venueGalleries', 'venuePackages'] : ['venueGalleries', 'venueServices', 'venueServices.service', 'venueEquipments', 'venueEquipments.equipment' ];
 
     const Package = packageId ? await this.venuePackageRepository.findOne({ where: { id: packageId }, relations: ['services', 'periods', 'services.service', 'equipments', 'equipments.equipment'] }) : null;
     const venue = await this.venueRepository.findOne({

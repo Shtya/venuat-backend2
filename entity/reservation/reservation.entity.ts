@@ -33,24 +33,31 @@ export class Reservation {
   check_out: Date;
 
 
-  @Column({ type: 'jsonb' , nullable : true })
-  periods: Record<string, number>;
-
-  @Column('jsonb', { nullable: true })
-  period_details: Record<string, any> | null;
-
   @Column('jsonb', { nullable: true })
   reservation_details: object | null;
 
 
   @Column('decimal')
   total_price: number;
+  
+  @Column({ type: 'varchar', length: 255 , nullable: true  })
+  payment_method: string | null;
+
 
   @Column('jsonb', { nullable: true })
   special_requests: object | null;
 
-  @Column({ type: 'varchar', length: 255 , nullable: true  })
-  payment_method: string | null;
+  @Column({ type: 'jsonb', nullable: true })
+  temp_periods: Record<string, number>; // الفترات المؤقتة
+  
+  @Column({ type: 'jsonb', nullable: true })
+  periods: Record<string, number>; // الفترات النهائية بعد القبول
+  
+  @Column('jsonb', { nullable: true })
+  temp_period_details: Record<string, any> | null; // تفاصيل الفترات المؤقتة
+  
+  @Column('jsonb', { nullable: true })
+  period_details: Record<string, any> | null; // تفاصيل الفترات النهائية
 
   @CreateDateColumn()
   created_at: Date;

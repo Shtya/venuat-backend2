@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, Delete, Query, UseGuards } from '@nestjs/common'; 
+import { Controller, Post, Get, Body, Param, Delete, Query, UseGuards, Patch } from '@nestjs/common';
 import { ReservationService } from './reservation.service';
 import { CreateReservationDto } from 'dto/venue/reservation.dto';
 import { AuthGuard } from 'src/01_auth/auth.guard';
@@ -6,8 +6,22 @@ import { Permissions } from 'src/01_auth/permissions.decorators';
 import { EPermissions } from 'enums/Permissions.enum';
 
 @Controller('reservations')
-export class ReservationController   {
+export class ReservationController {
   constructor(private readonly reservationService: ReservationService) {}
+
+  // reservation.controller.ts
+  @Patch('status-and-payment')
+  @UseGuards(AuthGuard)
+  async updateReservationStatusAndPayment(
+    @Body()
+    body: {
+      reservationId: any;
+      status: 'approved' | 'cancelled';
+      payment_method?: string;  
+    }
+  ) {
+    return this.reservationService.updateReservationStatusAndPayment(body.reservationId, body.status, body.payment_method);
+  }
 
   @Post()
   @UseGuards(AuthGuard)
@@ -19,8 +33,8 @@ export class ReservationController   {
   @Get()
   @UseGuards(AuthGuard)
   @Permissions(EPermissions.RESERVATIONS_READ)
-  async findAll(@Query() query  ) {
-    const { page, limit, search, sortBy, sortOrder, ...restQueryParams }  = query  ;
+  async findAll(@Query() query) {
+    const { page, limit, search, sortBy, sortOrder, ...restQueryParams } = query;
 
     return this.reservationService.FIND_Objects(
       'reservations',
@@ -37,21 +51,18 @@ export class ReservationController   {
       undefined, // status
       undefined, // occasion
       {
-        user: ['full_name', 'email' , "phone" ],
-        venue: ['name:jsonb']
+        user: ['full_name', 'email', 'phone'],
+        venue: ['name:jsonb'],
       }
     );
-
   }
-
 
   @Get(':id')
   @UseGuards(AuthGuard)
   @Permissions(EPermissions.RESERVATIONS_READ)
   findOne(@Param('id') id: number) {
-    return this.reservationService.findOne(id , ["user" , "venue" , "package"]);
+    return this.reservationService.findOne(id, ['user', 'venue', 'package']);
   }
-
 
   @Get(':id/user')
   @UseGuards(AuthGuard)
@@ -59,7 +70,6 @@ export class ReservationController   {
   findOneVenue(@Param('id') id: number) {
     return this.reservationService.findUserReservations(id);
   }
-
 
   @Get(':id/owner-venue')
   @UseGuards(AuthGuard)

@@ -1,6 +1,7 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { BaseService } from 'common/base/base.service';
+import { MailService } from 'common/nodemailer';
 import { CreateReservationDto } from 'dto/venue/reservation.dto';
 import { Reservation } from 'entity/reservation/reservation.entity';
 import { User } from 'entity/user/user.entity';
@@ -17,15 +18,139 @@ export class ReservationService extends BaseService<Reservation> {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Venue) private venueRepo: Repository<Venue>,
     @InjectRepository(VenuePackage) private packageRepo: Repository<VenuePackage>,
-    @InjectRepository(VenuePeriod) private venuePeriodRepo: Repository<VenuePeriod>
+    @InjectRepository(VenuePeriod) private venuePeriodRepo: Repository<VenuePeriod>,
+    public readonly mailService: MailService
   ) {
     super(reservationRepo);
   }
 
+  async updateReservationStatusAndPayment(
+  id: number,
+  status: 'approved' | 'cancelled',
+  paymentMethod?: string
+) {
+  const reservation = await this.reservationRepo.findOne({ where: { id } });
+
+  if (!reservation) {
+    throw new NotFoundException(this.i18n.t('events.reservation_not_found'));
+  }
+
+  // Handle approval
+  if (status === 'approved') {
+    if (reservation.status === 'approved') {
+      return reservation; // Already approved
+    }
+
+    // Move temp to permanent
+    reservation.periods = reservation.temp_periods;
+    reservation.period_details = reservation.temp_period_details;
+    
+    // Add booked dates
+    for (const [dateStr, periodId] of Object.entries(reservation.periods)) {
+      await this.venuePeriodRepo
+        .createQueryBuilder()
+        .update()
+        .set({ booked_dates: () => `array_append(booked_dates, '${dateStr}')` })
+        .where('id = :id', { id: periodId })
+        .execute();
+    }
+  } 
+  // Handle cancellation
+  else if (status === 'cancelled') {
+    if (reservation.status === 'cancelled') {
+      return reservation; // Already cancelled
+    }
+
+    // If previously approved, remove booked dates
+    if (reservation.periods) {
+      for (const [dateStr, periodId] of Object.entries(reservation.periods)) {
+        await this.venuePeriodRepo
+          .createQueryBuilder()
+          .update()
+          .set({ booked_dates: () => `array_remove(booked_dates, '${dateStr}')` })
+          .where('id = :id', { id: periodId })
+          .execute();
+      }
+    }
+
+    // Clear periods
+    reservation.periods = null;
+    reservation.period_details = null;
+  }
+
+  // Update payment method if provided
+  if (paymentMethod) {
+    reservation.payment_method = paymentMethod;
+  }
+
+  // Update status
+  reservation.status = status;
+  return await this.reservationRepo.save(reservation);
+}
+
+  // async updateReservationStatus(id: number, status: 'approved' | 'cancelled') {
+  //   const reservation = await this.reservationRepo.findOne({ where: { id } });
+
+  //   if (!reservation) {
+  //     throw new NotFoundException(this.i18n.t('events.reservation_not_found'));
+  //   }
+
+  //   // Handle approval
+  //   if (status === 'approved') {
+  //     if (reservation.status === 'approved') {
+  //       return reservation; // Already approved
+  //     }
+
+  //     // Move temp to permanent
+  //     reservation.periods = reservation.temp_periods;
+  //     reservation.period_details = reservation.temp_period_details;
+
+  //     // Add booked dates
+  //     for (const [dateStr, periodId] of Object.entries(reservation.periods)) {
+  //       await this.venuePeriodRepo
+  //         .createQueryBuilder()
+  //         .update()
+  //         .set({ booked_dates: () => `array_append(booked_dates, '${dateStr}')` })
+  //         .where('id = :id', { id: periodId })
+  //         .execute();
+  //     }
+  //   }
+  //   // Handle cancellation
+  //   else if (status === 'cancelled') {
+  //     if (reservation.status === 'cancelled') {
+  //       return reservation; // Already cancelled
+  //     }
+
+  //     // If previously approved, remove booked dates
+  //     if (reservation.periods) {
+  //       for (const [dateStr, periodId] of Object.entries(reservation.periods)) {
+  //         await this.venuePeriodRepo
+  //           .createQueryBuilder()
+  //           .update()
+  //           .set({ booked_dates: () => `array_remove(booked_dates, '${dateStr}')` })
+  //           .where('id = :id', { id: periodId })
+  //           .execute();
+  //       }
+  //     }
+
+  //     // Clear periods
+  //     reservation.periods = null;
+  //     reservation.period_details = null;
+  //   }
+
+  //   // Update status
+  //   reservation.status = status;
+  //   return await this.reservationRepo.save(reservation);
+  // }
   async createCustom(dto) {
-    // 1. Validate related entities
     await checkFieldExists(this.userRepo, { id: dto.user }, this.i18n.t('events.user_not_exist'), true, 404);
-    await checkFieldExists(this.venueRepo, { id: dto.venue }, this.i18n.t('events.venue_not_exist'), true, 404);
+    const venue = await this.venueRepo.findOne({
+      where: { id: dto.venue },
+    });
+
+    if (!venue) {
+      throw new BadRequestException(this.i18n.t('events.venue_not_exist'));
+    }
 
     if (dto.package) {
       await checkFieldExists(this.packageRepo, { id: dto.package }, this.i18n.t('events.package_not_exist'), true, 404);
@@ -34,58 +159,53 @@ export class ReservationService extends BaseService<Reservation> {
     const periodIds = Object.values(dto.periods);
     const periods = await this.venuePeriodRepo.find({ where: { id: In(periodIds) } });
 
-    const foundIds = periods.map(p => p.id);
-
-    const missing = periodIds.filter((id: any) => !foundIds.includes(id));
-
-    if (missing.length > 0) {
-      throw new BadRequestException(`Period ID(s) [${missing.join(', ')}] do not exist for this venue.`);
-    }
-
     let conflicts = [];
-    for (const [dateStr, periodId] of Object.entries(dto.periods)) {
-      const existingReservation = await this.reservationRepo
-        .createQueryBuilder('reservation')
-        .where('reservation.venueId = :venueId', { venueId: dto.venue })
-        .andWhere(`(reservation.periods ->> :date) = :periodId`, {
-          date: dateStr,
-          periodId: periodId.toString(),
-        })
-        .getOne();
+    // for (const [dateStr, periodId] of Object.entries(dto.periods)) {
+    //   const existingReservation = await this.reservationRepo
+    //     .createQueryBuilder('reservation')
+    //     .where('reservation.venueId = :venueId', { venueId: dto.venue })
+    //     .andWhere(`(reservation.periods ->> :date) = :periodId OR (reservation.temp_periods ->> :date) = :periodId`, {
+    //       date: dateStr,
+    //       periodId: periodId.toString(),
+    //     })
+    //     .getOne();
 
-      if (existingReservation) {
-        conflicts.push(dateStr);
-      }
-    }
+    //   if (existingReservation) {
+    //     conflicts.push(dateStr);
+    //   }
+    // }
 
     if (conflicts.length > 0) {
       throw new BadRequestException(this.i18n.t('events.period_already_reserved', { args: { date: conflicts.join(', ') } }));
     }
 
-    for (const [dateStr, periodId] of Object.entries(dto.periods)) {
-      await this.venuePeriodRepo
-        .createQueryBuilder()
-        .update()
-        .set({ booked_dates: () => `array_append(booked_dates, '${dateStr}')` })
-        .where('id = :id', { id: periodId })
-        .execute();
-    }
-
+    // Create reservation with temporary periods
     const reservation: any = this.reservationRepo.create({
       ...dto,
+      temp_periods: dto.periods,
+      temp_period_details: periods,
+      periods: null, // Will be filled when approved
+      period_details: null, // Will be filled when approved
+      status: 'pending', // Waiting for approval
     });
-    reservation.period_details = periods;
+
     const savedReservation = await this.reservationRepo.save(reservation);
 
-    return {
-      ...savedReservation,
-      period_details: periods,
-    };
+    // Send email notification to venue owner
+    await this.mailService.sendReservationNotification(venue.email, {
+      reservationId: savedReservation.id,
+      venueName: venue.name,
+      dates: Object.keys(dto.periods).join(', '),
+      userName: dto.user.name, // Assuming user info is available
+      totalPrice: dto.total_price,
+    });
+
+    return savedReservation;
   }
 
   async findUserReservations(id) {
-    const reservations = await this.reservationRepo.find({ where: { user: {id} }, relations: ['venue'] });
-    console.log(id)
+    const reservations = await this.reservationRepo.find({ where: { user: { id } }, relations: ['venue'] });
+    console.log(id);
     return reservations;
   }
 
