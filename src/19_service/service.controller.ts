@@ -1,5 +1,5 @@
 // src/service/service.controller.ts
-import { Controller, Get, Post, Body, Param, Put, Delete, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Query, UseGuards, Req, ValidationPipe } from '@nestjs/common';
 import { ServiceService } from './service.service';
 import { CreateServiceDto, UpdateServiceDto } from 'dto/venue/service.dto';
 import { checkFieldExists } from 'utils/checkFieldExists';
@@ -24,7 +24,7 @@ export class ServiceController {
   @Post()
   @UseGuards(AuthGuard)
   // @Permissions(EPermissions.SERVICES_CREATE)
-  async create(@Body() dto: CreateServiceDto, @Req() req: any) {
+  async create(@Body()dto: CreateServiceDto, @Req() req: any) {
     await checkFieldExists(this.mediaRepository, { id: dto.icon_media_id }, this.serviceService.i18n.t("events.media.not_found", { args: { id: dto.icon_media_id } })    , true , 404);
     
     const user = req.user; 

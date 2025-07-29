@@ -1,11 +1,23 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsObject, IsOptional, IsBoolean, IsNumber, IsString, IsArray, ValidateNested } from 'class-validator';
+import { IsNotEmpty, IsObject, IsOptional, IsBoolean, IsNumber, IsString, IsArray, ValidateNested, IsDefined } from 'class-validator';
+
+class NameDto {
+  @IsString({ message: "events.ar_required" })
+  @IsNotEmpty({ message: "events.ar_required" })
+  ar: string;
+
+  @IsString({ message: "events.en_required" })
+  @IsNotEmpty({ message: "events.en_required" })
+  en: string;
+}
 
 export class CreateServiceDto {
-  @IsObject({ message: "events.service_name_invalid" }) // اسم الخدمة غير صالح
-  @IsNotEmpty({ message: "events.service_name_required" }) // اسم الخدمة مطلوب
-  name: Record<string, any>;
+  @IsObject({ message: "events.service_name_invalid" })
+  @IsNotEmpty({ message: "events.service_name_required" })
+  @ValidateNested()
+  @Type(() => NameDto)
+  name: NameDto;
 
   @IsOptional()
   @IsNumber({}, { message: "events.service_icon_invalid" }) // معرف الأيقونة غير صالح

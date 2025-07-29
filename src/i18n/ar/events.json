@@ -1,4 +1,6 @@
 {
+  "ar_required": "الاسم باللغة العربية مطلوب",
+  "en_required": "الاسم باللغة الإنجليزية مطلوب",
   "refresh_token_expired": "انتهت صلاحية رمز التحديث الخاص بك. الرجاء تسجيل الدخول مرة أخرى.",
   "equipment": {
     "not_found_for_venue": "لم يتم العثور على الجهاز برقم التعريف {serviceId} للمكان برقم التعريف {venueId}",
@@ -12,7 +14,7 @@
   "website_settings_not_found": "إعدادات الموقع بالمعرف {id} غير موجودة.",
   "service_not_exist": "الخدمة غير موجودة.",
   "check_your_email_for_verification": "يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك.",
-  "some_policies_not_found" : "بعض السياسات غير موجودة في قائمة السياسات",
+  "some_policies_not_found": "بعض السياسات غير موجودة في قائمة السياسات",
 
   "success": "تم التسجيل بنجاح!",
 

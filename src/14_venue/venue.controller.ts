@@ -134,6 +134,11 @@ export class VenueController {
     return this.venueService.findOneReservationVenue(id, packageId);
   }
 
+  @Get(':id/venue')
+  async findReservationAndPackage(@Param('id') id: number) {
+    return this.venueService.findReservationAndPackage(id);
+  }
+
   @Put(':id')
   @UseGuards(AuthGuard)
   @Permissions(EPermissions.VENUES_UPDATE)

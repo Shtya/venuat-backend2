@@ -33,7 +33,6 @@ export class VenuePackageService extends BaseService<VenuePackage> {
 
   async customCreate(dto: CreateVenuePackageDto, req: any) {
     await checkFieldExists(this.venueRepo, { id: dto.venue_id }, "venue doesn't exist.", true, 404);
-    const venue = await this.venueRepo.findOne({ where: { id: dto.venue_id } });
 
     const allPeriods = await this.venuePeriodRepo.find({ where: { venue: { id: dto.venue_id } } });
 
@@ -52,20 +51,28 @@ export class VenuePackageService extends BaseService<VenuePackage> {
       selectedPeriods.push(found);
     }
 
-        const minPeriodPrice = selectedPeriods.reduce((min, period) => {
-        return period.package_price < min ? period.package_price : min;
-      }, Number.POSITIVE_INFINITY);
-
-
+    const minPeriodPrice = selectedPeriods.reduce((min, period) => {
+      return period.package_price < min ? period.package_price : min;
+    }, Number.POSITIVE_INFINITY);
 
     dto.package_price = minPeriodPrice || 0;
 
-    if (new Date(dto.start_date) >= new Date(dto.end_date)) {
+    if (new Date(dto.start_date) > new Date(dto.end_date)) {
       throw new BadRequestException('Start date must be before end date.');
     }
 
-    if (dto.start_date && new Date(dto.start_date) <= new Date()) {
-      throw new BadRequestException('The offer end date must be in the future.');
+    if (dto.start_date && dto.end_date) {
+      const startDate = new Date(dto.start_date);
+      const endDate = new Date(dto.end_date);
+
+      // Normalize both dates to the beginning of the day (midnight)
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(0, 0, 0, 0);
+
+      // Compare start date and end date
+      if (startDate > endDate) {
+        throw new BadRequestException('Start date must be before end date.');
+      }
     }
 
     const predefinedEquipments = await this.getPredefinedEquipments(req.user.id);
@@ -89,80 +96,77 @@ export class VenuePackageService extends BaseService<VenuePackage> {
     return venuePackage;
   }
 
-
   async updateCustom(id: number, dto: UpdateVenuePackageDto) {
-  const existingPackage = await this.venuePackageRepo.findOne({
-    where: { id },
-    relations: ['periods'],
-  });
-
-  if (!existingPackage) {
-    throw new NotFoundException('Package not found.');
-  }
-
-  // If venue_id is provided, validate the venue exists
-  if (dto.venue_id) {
-    const venue = await this.venueRepo.findOne({ where: { id: dto.venue_id } });
-    if (!venue) {
-      throw new NotFoundException('Venue not found.');
-    }
-    existingPackage.venue = venue;
-  }
-
-  // Validate and map periods if provided
-  if (dto.periods && dto.periods.length > 0) {
-    const allPeriods = await this.venuePeriodRepo.find({
-      where: { venue: { id: dto.venue_id || existingPackage.venue.id } },
+    const existingPackage = await this.venuePackageRepo.findOne({
+      where: { id },
+      relations: ['periods'],
     });
 
-    const allPeriodMap = new Map(allPeriods.map(p => [p.id, p]));
+    if (!existingPackage) {
+      throw new NotFoundException('Package not found.');
+    }
 
-    const selectedPeriods: VenuePeriod[] = [];
+    // If venue_id is provided, validate the venue exists
+    if (dto.venue_id) {
+      const venue = await this.venueRepo.findOne({ where: { id: dto.venue_id } });
+      if (!venue) {
+        throw new NotFoundException('Venue not found.');
+      }
+      existingPackage.venue = venue;
+    }
 
-    for (const period of dto.periods) {
-      const found = allPeriodMap.get(period.id);
-      if (!found) {
-        throw new BadRequestException(`Invalid period ID: ${period.id}`);
+    // Validate and map periods if provided
+    if (dto.periods && dto.periods.length > 0) {
+      const allPeriods = await this.venuePeriodRepo.find({
+        where: { venue: { id: dto.venue_id || existingPackage.venue.id } },
+      });
+
+      const allPeriodMap = new Map(allPeriods.map(p => [p.id, p]));
+
+      const selectedPeriods: VenuePeriod[] = [];
+
+      for (const period of dto.periods) {
+        const found = allPeriodMap.get(period.id);
+        if (!found) {
+          throw new BadRequestException(`Invalid period ID: ${period.id}`);
+        }
+
+        found.package_price = period.price;
+        selectedPeriods.push(found);
       }
 
-      found.package_price = period.price;
-      selectedPeriods.push(found);
+      // Update periods and calculate minimum package price
+      existingPackage.periods = selectedPeriods;
+      existingPackage.package_price = selectedPeriods.reduce((min, p) => Math.min(min, p.package_price), Number.POSITIVE_INFINITY);
     }
 
-    // Update periods and calculate minimum package price
-    existingPackage.periods = selectedPeriods;
-    existingPackage.package_price = selectedPeriods.reduce((min, p) => Math.min(min, p.package_price), Number.POSITIVE_INFINITY);
-  }
+    // Validate dates if provided
+    if (dto.start_date && dto.end_date) {
+      const start = new Date(dto.start_date);
+      const end = new Date(dto.end_date);
 
-  // Validate dates if provided
-  if (dto.start_date && dto.end_date) {
-    const start = new Date(dto.start_date);
-    const end = new Date(dto.end_date);
+      if (start >= end) {
+        throw new BadRequestException('Start date must be before end date.');
+      }
 
-    if (start >= end) {
-      throw new BadRequestException('Start date must be before end date.');
+      if (start <= new Date()) {
+        throw new BadRequestException('The offer start date must be in the future.');
+      }
+
+      existingPackage.start_date = start;
+      existingPackage.end_date = end;
     }
 
-    if (start <= new Date()) {
-      throw new BadRequestException('The offer start date must be in the future.');
+    // Update multilingual package name
+    if (dto.package_name) {
+      existingPackage.package_name = dto.package_name;
     }
 
-    existingPackage.start_date = start;
-    existingPackage.end_date = end;
+    // Save updated package
+    await this.venuePackageRepo.save(existingPackage);
+
+    return existingPackage;
   }
-
-  // Update multilingual package name
-  if (dto.package_name) {
-    existingPackage.package_name = dto.package_name;
-  }
-
-
-  // Save updated package
-  await this.venuePackageRepo.save(existingPackage);
-
-  return existingPackage;
-}
-
 
   countDayOccurrences(start: Date, end: Date, targetDay: string): number {
     const daysMap: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
@@ -184,23 +188,45 @@ export class VenuePackageService extends BaseService<VenuePackage> {
   async getForVenue(venue_id: any, status: 'expired' | 'current' | 'upcoming') {
     const relations = status ? ['periods'] : ['periods', 'services.service', 'services.service.iconMedia', 'equipments.equipment', 'equipments.equipment.iconMedia'];
 
-    const venuePackages = await this.venuePackageRepo.find({ where: { venue_id }, relations, order: { created_at: 'DESC' } });
+    const venuePackages = await this.venuePackageRepo.find({
+      where: { venue_id },
+      relations,
+      order: { created_at: 'DESC' },
+    });
 
-    const targetDate = new Date();
+    const targetDate = new Date(); // Get the current date for comparison
+    console.log('Target Date:', targetDate); // Log the target date
 
     const filtered = venuePackages.filter(pkg => {
-      const start = new Date(pkg.start_date);
-      const end = new Date(pkg.end_date);
+      const start = new Date(pkg.start_date); // Parse the start_date to a Date object
+      const end = new Date(pkg.end_date); // Parse the end_date to a Date object
+
+      console.log('Start Date:', start, 'End Date:', end); // Log the start and end dates for comparison
 
       if (status === 'expired') {
+        // Package is expired if end_date is less than the target date
         return end < targetDate;
       }
 
-      if (status === 'current') {
-        return start >= targetDate;
+if (status === 'current') {
+  // Normalize both the end_date and targetDate to the beginning of the day (midnight)
+  const endDate = new Date(pkg.end_date);
+  const targetDate = new Date(); // Assuming targetDate is the current date
+  
+  endDate.setHours(0, 0, 0, 0);  // Normalize end_date to midnight
+  targetDate.setHours(0, 0, 0, 0); // Normalize targetDate to midnight
+
+  // Compare the dates
+  return endDate >= targetDate;
+}
+
+
+      if (status === 'upcoming') {
+        // Package is upcoming if start_date is greater than the target date
+        return start > targetDate;
       }
 
-      return true;
+      return true; // Default case, should not be reached
     });
 
     return filtered;

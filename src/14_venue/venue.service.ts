@@ -259,4 +259,21 @@ export class VenueService extends BaseService<Venue> {
       package: Package,
     };
   }
+
+  async findReservationAndPackage(id ) {
+    const relations =   [ "venuePackages" , 'venueGalleries', 'venueServices', 'venueServices.service', 'venueEquipments', 'venueEquipments.equipment' ];
+
+    const packageVeneu = await this.venuePackageRepository.findOne({ where: { venue : {id} }, relations: ['services', 'periods', 'services.service', 'equipments', 'equipments.equipment'] }) ;
+    const venue = await this.venueRepository.findOne({
+      where: { id },
+      relations,
+    });
+
+    if (!venue) throw new NotFoundException(this.i18n.t('events.record_not_found', { args: { id } }));
+
+    return {
+      venue,
+      package : packageVeneu
+    };
+  }
 }

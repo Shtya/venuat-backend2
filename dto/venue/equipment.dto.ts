@@ -18,8 +18,6 @@ export class AddEquipmentToVenueDto {
   price_per: string;
 }
 
-
-
 import { IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -37,14 +35,24 @@ export class AddEquipmentsToVenueDto {
   equipments: EquipmentDto[];
 }
 
-
-
-
 import { PartialType } from '@nestjs/mapped-types';
 import { IsObject, IsOptional, IsBoolean } from 'class-validator';
 
+class NameDto {
+  @IsString({ message: 'events.ar_required' })
+  @IsNotEmpty({ message: 'events.ar_required' })
+  ar: string;
+
+  @IsString({ message: 'events.en_required' })
+  @IsNotEmpty({ message: 'events.en_required' })
+  en: string;
+}
+
 export class CreateEquipmentDto {
   @IsObject({ message: 'events.createequipment.name' })
+  @IsNotEmpty({ message: 'events.equipment_name_required' })
+  @ValidateNested()
+  @Type(() => NameDto)
   name: any;
 
   @IsOptional()
@@ -55,9 +63,6 @@ export class CreateEquipmentDto {
   @IsOptional()
   is_predefined?: boolean;
 }
-
-
-
 
 export class UpdateVenueEquipmentDto extends PartialType(AddEquipmentToVenueDto) {}
 export class UpdateEquipmentDto extends PartialType(CreateEquipmentDto) {}

@@ -1,4 +1,6 @@
 {
+  "ar_required": "The Arabic name is required",
+    "en_required": "The English name is required", 
   "refresh_token_expired": "Your refresh token has expired. Please log in again.",
   "equipment" : {
     "not_found_for_venue" :"equipment with ID {serviceId} not found for venue with ID {venueId}",
