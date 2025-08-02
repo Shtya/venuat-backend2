@@ -15,10 +15,10 @@ export class HomeSettings {
   urlVideo?: string;
 
   @Column({ type: 'simple-array', nullable: true })
-  specialVenues?: number[]; // تخزين معرفات الأماكن المميزة كمصفوفة
+  specialVenues?: number[];
 
   @Column({ type: 'simple-array', nullable: true })
-  bestRatedVenues?: number[]; // تخزين معرفات الأماكن الأعلى تقييمًا كمصفوفة
+  bestRatedVenues?: number[];
 
   @Column({ type: 'jsonb' })
   termsAndCondition: { ar: string; en: string };
@@ -28,6 +28,10 @@ export class HomeSettings {
 
   @Column({ type: 'jsonb' })
   necessaryLaws: { ar: string; en: string };
+
+   @Column({ type: 'text', nullable: true })
+  contractPdfUrl?: string;
+
 
   @Column({ type: 'jsonb', nullable: true })
   faqs?: Array<{

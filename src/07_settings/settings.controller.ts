@@ -1,14 +1,23 @@
-import { Controller, Get, Put, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Post, Delete, Body, Param, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { UpdateHomeSettingsDto, CreateFaqDto, UpdateFaqDto, CreateSocialMediaDto, UpdateSocialMediaDto, CreateHomeSettingsDto } from 'dto/website/websiteSetting.dto';
 import { HomeSettingsService } from './settings.service';
 import { AuthGuard } from 'src/01_auth/auth.guard';
 import { Permissions } from 'src/01_auth/permissions.decorators';
 import { EPermissions } from 'enums/Permissions.enum';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { multerOptions, multerOptionsPdf } from 'common/multer/multer.config';
 
 @Controller('settings')
 export class HomeSettingsController {
   constructor(private readonly homeSettingsService: HomeSettingsService) {}
 
+  @Post('contract-pdf')
+  @UseGuards(AuthGuard)
+  @Permissions(EPermissions.WEBSITE_SETTINGS_UPDATE)
+  @UseInterceptors(FileInterceptor('file', multerOptionsPdf))
+  uploadOrUpdateContractPdf(@UploadedFile() file: any) {
+    return this.homeSettingsService.uploadOrUpdateContractPdf(file);
+  }
 
   @Get()
   getSettings() {
@@ -49,7 +58,4 @@ export class HomeSettingsController {
   removePolicies(@Param('id') id: string) {
     return this.homeSettingsService.removePolicies(id);
   }
-
-
-
 }

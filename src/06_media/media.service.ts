@@ -30,12 +30,6 @@ export class MediaService extends BaseService<Media> {
     const size = file ? file.size : dto.size;
     const fileUrl = `${baseUrl}/uploads/${query.folder}/${query.collection}/${file.filename}`;
 
-    
-
-
-
-
-
     // Create media entity
     const media = this.mediaRepository.create({
       url: fileUrl,

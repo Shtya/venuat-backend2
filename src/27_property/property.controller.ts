@@ -52,10 +52,6 @@ export class PropertyController {
     
 
     let uploadImg= `${baseUrl}/uploads/${fileName.filename}`
-    // if (fileName) 
-    //   await uploadImg = ;
-
-    
     
     await checkFieldExists(this.userRepository, { id: dto.vendor_id },  this.i18n.t("events.vendor_not_found" , {args : {vendor_id}} )  , true);  
     if(user?.role?.name  !== "vendor" ) throw new BadRequestException( this.i18n.t("events.only_vendors_can_create")  );  
