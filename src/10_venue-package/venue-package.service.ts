@@ -149,10 +149,6 @@ export class VenuePackageService extends BaseService<VenuePackage> {
         throw new BadRequestException('Start date must be before end date.');
       }
 
-      if (start <= new Date()) {
-        throw new BadRequestException('The offer start date must be in the future.');
-      }
-
       existingPackage.start_date = start;
       existingPackage.end_date = end;
     }

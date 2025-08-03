@@ -146,6 +146,14 @@ export class VenueController {
     dto.occasion && (await checkFieldExists(this.occasionTypeRepository, { id: dto.occasion }, this.i18n.t('events.venue.occasion_type_not_found'), true)); //!'Occasion type does not exist'
     dto.property && (await checkFieldExists(this.prpoertyRepo, { id: dto.property }, this.i18n.t('events.venue.property_not_found'), true)); //!'Property does not exist'
 
+        if(dto.responsiblePersonName){
+      dto.contact_person = dto.responsiblePersonName
+    }
+    if(dto.contact_person){
+      dto.responsiblePersonName = dto.contact_person
+    }
+
+    
     return this.venueService.update(id, dto);
   }
 

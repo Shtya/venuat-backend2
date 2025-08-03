@@ -72,9 +72,17 @@ export class VenueService extends BaseService<Venue> {
     };
   }
 
-  async createCustom(dto: CreateVenueDto): Promise<Venue> {
+  async createCustom(dto: any): Promise<Venue> {
     dto.occasion && (await checkFieldExists(this.occasionTypeRepository, { id: dto.occasion }, this.i18n.t('events.venue.occasion_type_not_found'), true)); //!'Occasion type does not exist'
     dto.property && (await checkFieldExists(this.propertyRepository, { id: dto.property }, this.i18n.t('events.venue.property_not_found'), true)); //!'Property does not exist'
+
+     if(dto.responsiblePersonName){
+      dto.contact_person = dto.responsiblePersonName
+    }
+    if(dto.contact_person){
+      dto.responsiblePersonName = dto.contact_person
+    }
+
 
     const venue = this.venueRepository.create({
       ...(dto as any),

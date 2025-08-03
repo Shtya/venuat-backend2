@@ -29,15 +29,16 @@ export class ReportsService {
       .groupBy('city.name'); 
 
 
-      
-      
     if (userId) query.andWhere('vendor.id = :userId', { userId });
+
   
     if (from) query.andWhere('reservation.check_in >= :from', { from });
     if (to) query.andWhere('reservation.check_in <= :to', { to });
   
     // Execute the query and get the results
     const fullData = await query.getRawMany();
+
+    console.log(fullData);
   
     // Pagination logic
     const totalCount = fullData.length;

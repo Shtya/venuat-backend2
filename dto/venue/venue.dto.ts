@@ -38,6 +38,11 @@ export class CreateVenueDto {
   @IsString({ message: 'events.venue_contact_person_invalid' })
   contact_person?: string;
 
+  
+  @IsOptional()
+  @IsString({ message: 'events.venue_contact_person_invalid' })
+  responsiblePersonName?: string;
+
   @IsOptional()
   @IsString({ message: 'events.venue_opens_at_invalid' })
   opens_at?: string;
