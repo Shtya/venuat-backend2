@@ -29,9 +29,11 @@ export class HomeSettings {
   @Column({ type: 'jsonb' })
   necessaryLaws: { ar: string; en: string };
 
-   @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true })
   contractPdfUrl?: string;
 
+  @Column({ type: 'text', nullable: true })
+  contractPdfUrl_en?: string;
 
   @Column({ type: 'jsonb', nullable: true })
   faqs?: Array<{

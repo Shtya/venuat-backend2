@@ -15,11 +15,11 @@ export class HomeSettingsService {
     @InjectRepository(Venue) private readonly venueRepo: Repository<Venue>
   ) {}
 
-  async uploadOrUpdateContractPdf(file: any) {
+  async uploadOrUpdateContractPdf(files: { file_ar?: Express.Multer.File[]; file_en?: Express.Multer.File[] }) {
     let settings = await this.homeSettingsRepo.findOne({ where: { id: 1 } });
 
     if (!settings) {
-       settings = this.homeSettingsRepo.create({
+      settings = this.homeSettingsRepo.create({
         id: 1,
         titleHome: { ar: null, en: null },
         secondTitleHome: { ar: null, en: null },
@@ -32,15 +32,30 @@ export class HomeSettingsService {
         socialMedia: [],
         dataPrivacy: { ar: null, en: null },
         necessaryLaws: { ar: null, en: null },
+        contractPdfUrl: null,
+        contractPdfUrl_en: null,
       });
       settings = await this.homeSettingsRepo.save(settings);
     }
 
-    if (!file) {
-      throw new BadRequestException('No file uploaded');
-    } 
-    settings.contractPdfUrl = `uploads/${file.filename}`;
-    return this.homeSettingsRepo.save(settings);
+    if (!files || (!files.file_ar && !files.file_en)) {
+      throw new BadRequestException('No file(s) uploaded. Provide at least one of file_ar or file_en.');
+    }
+
+    if (files.file_ar && files.file_ar[0]) {
+      settings.contractPdfUrl = `uploads/${files.file_ar[0].filename}`;
+    }
+
+    if (files.file_en && files.file_en[0]) {
+      settings.contractPdfUrl_en = `uploads/${files.file_en[0].filename}`;
+    }
+
+    await this.homeSettingsRepo.save(settings);
+
+    return {
+      contractPdfUrl: settings.contractPdfUrl,
+      contractPdfUrl_en: settings.contractPdfUrl_en,
+    };
   }
 
   async getSettings() {

@@ -58,10 +58,6 @@ export const multerOptionsPdf = {
   }),
 
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
-      cb(null, true); // Allow only PDF files
-    } else {
-      cb(new BadRequestException('Unsupported file type. Only PDF is allowed'), false);
-    }
+      cb(null, true); 
   },
 };
