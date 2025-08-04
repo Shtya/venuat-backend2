@@ -12,20 +12,19 @@ import { Property } from 'entity/property/property.entity';
 import { I18nService } from 'nestjs-i18n';
 import { BaseService } from 'common/base/base.service';
 import { VenuePackage } from 'entity/venue/venue_package.entity';
+import { MailService } from 'common/nodemailer';
+import { HomeSettings } from 'entity/website/website_settings.entity';
 
 @Injectable()
 export class VenueService extends BaseService<Venue> {
   constructor(
-    @InjectRepository(Venue)
-    private venueRepository: Repository<Venue>,
+    @InjectRepository(Venue) public venueRepository: Repository<Venue>,
+    @InjectRepository(HomeSettings) public settingRepository: Repository<HomeSettings>,
     @InjectRepository(OccasionType)
-    private occasionTypeRepository: Repository<OccasionType>,
-    @InjectRepository(Feature)
-    private featureRepository: Repository<Feature>,
-    @InjectRepository(VenueFeature)
-    private venueFeatureRepository: Repository<VenueFeature>,
+    private occasionTypeRepository: Repository<OccasionType>, 
     @InjectRepository(Property) private propertyRepository: Repository<Property>,
-    @InjectRepository(VenuePackage) private venuePackageRepository: Repository<VenuePackage>
+    @InjectRepository(VenuePackage) private venuePackageRepository: Repository<VenuePackage>,
+    public readonly mailService: MailService
   ) {
     super(venueRepository);
   }
@@ -76,13 +75,12 @@ export class VenueService extends BaseService<Venue> {
     dto.occasion && (await checkFieldExists(this.occasionTypeRepository, { id: dto.occasion }, this.i18n.t('events.venue.occasion_type_not_found'), true)); //!'Occasion type does not exist'
     dto.property && (await checkFieldExists(this.propertyRepository, { id: dto.property }, this.i18n.t('events.venue.property_not_found'), true)); //!'Property does not exist'
 
-     if(dto.responsiblePersonName){
-      dto.contact_person = dto.responsiblePersonName
+    if (dto.responsiblePersonName) {
+      dto.contact_person = dto.responsiblePersonName;
     }
-    if(dto.contact_person){
-      dto.responsiblePersonName = dto.contact_person
+    if (dto.contact_person) {
+      dto.responsiblePersonName = dto.contact_person;
     }
-
 
     const venue = this.venueRepository.create({
       ...(dto as any),
@@ -205,7 +203,6 @@ export class VenueService extends BaseService<Venue> {
     venue.visitCount += 1;
     await this.venueRepository.save(venue);
 
-
     // ✅ جلب القاعات المشابهة بناءً على نفس `occasion_id`
     const similarVenues = await this.venueRepository.find({
       where: { occasion: { id: venue?.occasion?.id }, id: Not(id) }, // استثناء القاعة الحالية
@@ -252,7 +249,7 @@ export class VenueService extends BaseService<Venue> {
   }
 
   async findOneReservationVenue(id, packageId?: number) {
-    const relations = packageId ? ['venueGalleries', 'venuePackages'] : ['venueGalleries', 'venueServices', 'venueServices.service', 'venueEquipments', 'venueEquipments.equipment' ];
+    const relations = packageId ? ['venueGalleries', 'venuePackages'] : ['venueGalleries', 'venueServices', 'venueServices.service', 'venueEquipments', 'venueEquipments.equipment'];
 
     const Package = packageId ? await this.venuePackageRepository.findOne({ where: { id: packageId }, relations: ['services', 'periods', 'services.service', 'equipments', 'equipments.equipment'] }) : null;
     const venue = await this.venueRepository.findOne({
@@ -268,10 +265,10 @@ export class VenueService extends BaseService<Venue> {
     };
   }
 
-  async findReservationAndPackage(id ) {
-    const relations =   [ "venuePackages" , 'venueGalleries', 'venueServices', 'venueServices.service', 'venueEquipments', 'venueEquipments.equipment' ];
+  async findReservationAndPackage(id) {
+    const relations = ['venuePackages', 'venueGalleries', 'venueServices', 'venueServices.service', 'venueEquipments', 'venueEquipments.equipment'];
 
-    const packageVeneu = await this.venuePackageRepository.findOne({ where: { venue : {id} }, relations: ['services', 'periods', 'services.service', 'equipments', 'equipments.equipment'] }) ;
+    const packageVeneu = await this.venuePackageRepository.findOne({ where: { venue: { id } }, relations: ['services', 'periods', 'services.service', 'equipments', 'equipments.equipment'] });
     const venue = await this.venueRepository.findOne({
       where: { id },
       relations,
@@ -281,7 +278,7 @@ export class VenueService extends BaseService<Venue> {
 
     return {
       venue,
-      package : packageVeneu
+      package: packageVeneu,
     };
   }
 }

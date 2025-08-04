@@ -39,7 +39,6 @@ export class HomeSettingsService {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     } 
-    console.log(file);
     settings.contractPdfUrl = `uploads/${file.filename}`;
     return this.homeSettingsRepo.save(settings);
   }

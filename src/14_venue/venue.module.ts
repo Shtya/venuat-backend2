@@ -9,10 +9,12 @@ import { VenueFeature } from 'entity/venue/venue_feature.entity';
 import { OccasionType } from 'entity/venue/occasion_type.entity';
 import { Service } from 'entity/venue/service.entity';
 import { VenueService as VenueServiceEntity } from 'entity/venue/venue_service.entity';
+import { MailService } from 'common/nodemailer';
+import { HomeSettings } from 'entity/website/website_settings.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Venue, Feature, VenueFeature, OccasionType, Service, VenueServiceEntity])],
-  providers: [VenueService],
+  imports: [TypeOrmModule.forFeature([Venue, Feature, VenueFeature, OccasionType, Service, VenueServiceEntity , HomeSettings])],
+  providers: [VenueService , MailService],
   controllers: [VenueController],
 })
 export class VenueModule {}

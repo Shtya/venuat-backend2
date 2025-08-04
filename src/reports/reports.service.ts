@@ -37,8 +37,6 @@ export class ReportsService {
   
     // Execute the query and get the results
     const fullData = await query.getRawMany();
-
-    console.log(fullData);
   
     // Pagination logic
     const totalCount = fullData.length;

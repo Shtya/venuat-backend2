@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
+interface ContractAcceptanceEmailOptions {
+  userName: string;
+  contractTitle: string;
+  contractUrl: string;
+  acceptedAt: Date;
+  supportEmail?: string;
+}
+
 @Injectable()
 export class MailService {
   private transporter = nodemailer.createTransport({
@@ -195,10 +203,114 @@ export class MailService {
 
     </div>
   `;
- await this.transporter.sendMail({
+    await this.transporter.sendMail({
       to: ownerEmail,
       subject,
       html: htmlContent,
+    });
+  }
+
+  async sendContractAcceptanceEmail(to: string, opts: ContractAcceptanceEmailOptions) {
+    const { userName, contractTitle, contractUrl, acceptedAt, supportEmail = 'support@example.com' } = opts;
+
+    // Format date in English, Cairo timezone
+    const formattedDate = new Intl.DateTimeFormat('en-US', {
+      dateStyle: 'full',
+      timeStyle: 'short',
+      timeZone: 'Africa/Cairo',
+    }).format(acceptedAt);
+
+    const subject = `Contract Accepted: ${contractTitle}`;
+
+    const htmlContent = `
+  <!doctype html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Contract Accepted</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root {
+        --bg:#f4f7fb;
+        --card:#ffffff;
+        --primary:#6366f1;
+        --text:#1f2937;
+        --radius:12px;
+        --shadow:0 25px 70px -15px rgba(99,102,241,.25);
+      }
+      *{box-sizing:border-box;}
+      body{margin:0;padding:0;background:var(--bg);font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;color:var(--text);}
+      .wrapper{max-width:600px;margin:0 auto;padding:20px;}
+      .card{background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+      .header{padding:30px;text-align:center;background:linear-gradient(135deg,var(--primary) 0%,#a78bfa 100%);color:#fff;}
+      .header h1{margin:0;font-size:24px;}
+      .content{padding:30px;}
+      .button{display:inline-block;padding:14px 24px;background:var(--primary);color:#fff;text-decoration:none;border-radius:8px;font-weight:600;margin:20px 0;}
+      .small{font-size:12px;color:#6b7280;margin-top:10px;}
+      .footer{padding:20px;text-align:center;font-size:12px;color:#9ca3af;}
+      .details{background:#eef3fb;border-radius:8px;padding:15px;margin:20px 0;}
+      .info{margin:8px 0;}
+      .label{font-weight:600;}
+      ol{padding-left:20px;margin:8px 0;}
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="card">
+        <div class="header">
+          <h1>Contract Accepted</h1>
+        </div>
+        <div class="content">
+          <p>Hi ${userName},</p>
+          <p>Thank you for accepting the <strong>${contractTitle}</strong>. We recorded your acceptance on <strong>${formattedDate}</strong>.</p>
+          <div class="details">
+            <div class="info"><span class="label">Contract:</span> ${contractTitle}</div>
+            <div class="info"><span class="label">Accepted at:</span> ${formattedDate}</div>
+          </div>
+          <p>You can view or download the full contract by clicking the button below:</p>
+          <p><a href="${contractUrl}" class="button" target="_blank" rel="noopener">View Contract</a></p>
+          <p>What happens next:</p>
+          <ol>
+            <li>Your agreement is now active.</li>
+            <li>You may keep a copy for your records.</li>
+            <li>If you have questions, contact us at ${supportEmail}.</li>
+          </ol>
+          <p class="small">If you did not accept this contract, please ignore this email or contact support immediately.</p>
+          <p>Best regards,<br/>The ${process.env.PROJECT_NAME || 'Team'}</p>
+        </div>
+        <div class="footer">
+          &copy; ${new Date().getFullYear()} ${process.env.PROJECT_NAME || 'Your Project'}. All rights reserved.
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>
+  `;
+
+    const textContent = `
+      Hi ${userName},
+
+      Thank you for accepting the "${contractTitle}". We recorded your acceptance on ${formattedDate}.
+
+      You can view the contract here: ${contractUrl}
+
+      What happens next:
+      1. Your agreement is now active.
+      2. You may keep a copy for your records.
+      3. If you have questions, contact us at ${supportEmail}.
+
+      If you did not accept this, ignore this email or contact support immediately.
+
+      Best regards,
+      ${process.env.PROJECT_NAME || 'Team'}
+      `;
+
+    await this.transporter.sendMail({
+      from: `"${process.env.PROJECT_NAME}" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html: htmlContent,
+      text: textContent,
     });
   }
 }

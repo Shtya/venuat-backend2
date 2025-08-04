@@ -191,13 +191,10 @@ export class VenuePackageService extends BaseService<VenuePackage> {
     });
 
     const targetDate = new Date(); // Get the current date for comparison
-    console.log('Target Date:', targetDate); // Log the target date
 
     const filtered = venuePackages.filter(pkg => {
       const start = new Date(pkg.start_date); // Parse the start_date to a Date object
       const end = new Date(pkg.end_date); // Parse the end_date to a Date object
-
-      console.log('Start Date:', start, 'End Date:', end); // Log the start and end dates for comparison
 
       if (status === 'expired') {
         // Package is expired if end_date is less than the target date

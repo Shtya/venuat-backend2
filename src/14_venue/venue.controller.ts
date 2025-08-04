@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, Patch, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Patch, Query, UseGuards, NotFoundException } from '@nestjs/common';
 import { VenueService } from './venue.service';
 import { CreateVenueDto, UpdateVenueDto } from 'dto/venue/venue.dto';
 import { AddFeatureToVenueDto } from 'dto/venue/feature.dto';
@@ -64,10 +64,10 @@ export class VenueController {
   }
 
   @Get('vendor/:vendorId')
-  async getVenuesByVendor(@Param('vendorId') vendorId: number , @Query() query ) {
-        const { page, limit, sortBy, sortOrder } = query;
+  async getVenuesByVendor(@Param('vendorId') vendorId: number, @Query() query) {
+    const { page, limit, sortBy, sortOrder } = query;
 
-    return this.venueService.getAllByVendor(vendorId , query );
+    return this.venueService.getAllByVendor(vendorId, query);
   }
 
   @Get('find-all')
@@ -146,14 +146,32 @@ export class VenueController {
     dto.occasion && (await checkFieldExists(this.occasionTypeRepository, { id: dto.occasion }, this.i18n.t('events.venue.occasion_type_not_found'), true)); //!'Occasion type does not exist'
     dto.property && (await checkFieldExists(this.prpoertyRepo, { id: dto.property }, this.i18n.t('events.venue.property_not_found'), true)); //!'Property does not exist'
 
-        if(dto.responsiblePersonName){
-      dto.contact_person = dto.responsiblePersonName
-    }
-    if(dto.contact_person){
-      dto.responsiblePersonName = dto.contact_person
+    const existingVenue = await this.venueService.venueRepository.findOne({ where: { id }, relations: ['property', 'property.vendor'] });
+    if (!existingVenue) {
+      throw new NotFoundException(this.i18n.t('events.venue.not_found'));
     }
 
-    
+    if (dto.acceptTerms) {
+      var settings = await this.venueService.settingRepository.findOne({ where: { id: 1 } });
+    }
+
+    if (dto.responsiblePersonName) {
+      dto.contact_person = dto.responsiblePersonName;
+    }
+    if (dto.contact_person) {
+      dto.responsiblePersonName = dto.contact_person;
+    }
+
+    if (dto.acceptTerms) {
+      await this.venueService.mailService.sendContractAcceptanceEmail(existingVenue.property.vendor.email, {
+        userName: existingVenue.property.vendor.full_name,
+        contractTitle: 'Service Agreement',
+        contractUrl: `${process.env.BASE_URL_PROD}/${settings.contractPdfUrl}`,
+        acceptedAt: new Date(),
+        supportEmail: process.env.SUPPORT_EMAIL || 'support@example.com',
+      });
+    }
+
     return this.venueService.update(id, dto);
   }
 

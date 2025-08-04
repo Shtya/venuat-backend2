@@ -228,7 +228,6 @@ export class ReservationService extends BaseService<Reservation> {
 
   async findUserReservations(id) {
     const reservations = await this.reservationRepo.find({ where: { user: { id } }, relations: ['venue'] });
-    console.log(id);
     return reservations;
   }
 
