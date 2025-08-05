@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, Patch, Query, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Patch, Query, UseGuards, NotFoundException, BadRequestException } from '@nestjs/common';
 import { VenueService } from './venue.service';
 import { CreateVenueDto, UpdateVenueDto } from 'dto/venue/venue.dto';
 import { AddFeatureToVenueDto } from 'dto/venue/feature.dto';
@@ -175,10 +175,23 @@ export class VenueController {
     return this.venueService.update(id, dto);
   }
 
+  @Delete('bulk-delete')
+  @UseGuards(AuthGuard)
+   async softDeleteMany(@Body() body: { ids: number[] }): Promise<void> {
+    // تأكد من أن الـ ids ليس فارغًا
+    if (!body.ids || body.ids.length === 0) {
+      throw new BadRequestException('Please provide an array of IDs');
+    }
+
+    console.log(body.ids);
+    await this.venueService.softDeleteMany(body.ids);
+  }
   @Delete(':id')
   @UseGuards(AuthGuard)
   @Permissions(EPermissions.VENUES_DELETE)
   async remove(@Param('id') id: number) {
     return this.venueService.remove(id);
   }
+
+
 }

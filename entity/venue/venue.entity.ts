@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, DeleteDateColumn } from 'typeorm';
 import { OccasionType } from './occasion_type.entity';
 import { VenueFeature } from './venue_feature.entity';
 import { VenueService } from './venue_service.entity';
@@ -110,6 +110,12 @@ export class Venue {
 
   @Column({ type: "double precision", default: 0.15, nullable: true }) // Add VAT column with default value of 15%
   vat: number;
+
+
+  @DeleteDateColumn({ name: 'deleted_at', nullable: true })
+  deletedAt: Date | null; // Hiding the entity using soft delete.
+
+
 
   @ManyToOne(() => OccasionType, occasionType => occasionType.venues)
   @JoinColumn({ name: "occasion_id" })

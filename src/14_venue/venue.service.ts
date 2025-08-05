@@ -14,6 +14,7 @@ import { BaseService } from 'common/base/base.service';
 import { VenuePackage } from 'entity/venue/venue_package.entity';
 import { MailService } from 'common/nodemailer';
 import { HomeSettings } from 'entity/website/website_settings.entity';
+import { In } from 'typeorm';
 
 @Injectable()
 export class VenueService extends BaseService<Venue> {
@@ -31,6 +32,25 @@ export class VenueService extends BaseService<Venue> {
 
   public relations: string[] = ['occasion', 'ratings', 'venueGalleries'];
   public relationsOne: string[] = ['occasion', 'ratings', 'property', 'property.city', 'property.city.country', 'venueGalleries', 'venueFAQs', 'venuePackages', 'venueServices', 'venueServices.service', 'venueEquipments', 'venueEquipments.equipment', 'venueFeatures', 'venueFeatures.feature'];
+
+
+  async softDeleteMany(ids: number[]): Promise<void> {
+  console.log(ids);
+  const venues = await this.venueRepository.findByIds(ids);
+  console.log(venues);
+  if (!venues || venues.length === 0) {
+    throw new NotFoundException('Some or all venues not found');
+  }
+
+  // استخدام الحذف المنطقي (soft delete)
+  await this.venueRepository.update(
+    { id: In(ids) },
+    { deletedAt: new Date() } // assuming you have a `deletedAt` field for soft delete
+  );
+}
+
+
+
 
   async getAllByVendor(
     vendorId: number,
