@@ -8,7 +8,7 @@ import { User } from 'entity/user/user.entity';
 import { Venue } from 'entity/venue/venue.entity';
 import { VenuePackage } from 'entity/venue/venue_package.entity';
 import { VenuePeriod } from 'entity/venue/venue_period.entity';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { checkFieldExists } from 'utils/checkFieldExists';
 
 @Injectable()
@@ -24,71 +24,8 @@ export class ReservationService extends BaseService<Reservation> {
     super(reservationRepo);
   }
 
-  //   async updateReservationStatusAndPayment(
-  //   id: number,
-  //   status: 'approved' | 'cancelled',
-  //   paymentMethod?: string
-  // ) {
-  //   const reservation = await this.reservationRepo.findOne({ where: { id } });
-
-  //   if (!reservation) {
-  //     throw new NotFoundException(this.i18n.t('events.reservation_not_found'));
-  //   }
-
-  //   // Handle approval
-  //   if (status === 'approved') {
-  //     if (reservation.status === 'approved') {
-  //       return reservation; // Already approved
-  //     }
-
-  //     // Move temp to permanent
-  //     reservation.periods = reservation.temp_periods;
-  //     reservation.period_details = reservation.temp_period_details;
-
-  //     // Add booked dates
-  //     for (const [dateStr, periodId] of Object.entries(reservation.periods)) {
-  //       await this.venuePeriodRepo
-  //         .createQueryBuilder()
-  //         .update()
-  //         .set({ booked_dates: () => `array_append(booked_dates, '${dateStr}')` })
-  //         .where('id = :id', { id: periodId })
-  //         .execute();
-  //     }
-  //   }
-  //   // Handle cancellation
-  //   else if (status === 'cancelled') {
-  //     if (reservation.status === 'cancelled') {
-  //       return reservation; // Already cancelled
-  //     }
-
-  //     // If previously approved, remove booked dates
-  //     if (reservation.periods) {
-  //       for (const [dateStr, periodId] of Object.entries(reservation.periods)) {
-  //         await this.venuePeriodRepo
-  //           .createQueryBuilder()
-  //           .update()
-  //           .set({ booked_dates: () => `array_remove(booked_dates, '${dateStr}')` })
-  //           .where('id = :id', { id: periodId })
-  //           .execute();
-  //       }
-  //     }
-
-  //     // Clear periods
-  //     reservation.periods = null;
-  //     reservation.period_details = null;
-  //   }
-
-  //   // Update payment method if provided
-  //   if (paymentMethod) {
-  //     reservation.payment_method = paymentMethod;
-  //   }
-
-  //   // Update status
-  //   reservation.status = status;
-  //   return await this.reservationRepo.save(reservation);
-  // }
   async updateReservationStatusAndPayment(id: number, status: 'approved' | 'cancelled', paymentMethod?: string) {
-    const reservation = await this.reservationRepo.findOne({ where: { id } , relations : ['venue'] });
+    const reservation = await this.reservationRepo.findOne({ where: { id }, relations: ['venue'] });
 
     if (!reservation) {
       throw new NotFoundException(this.i18n.t('events.reservation_not_found'));
@@ -104,16 +41,28 @@ export class ReservationService extends BaseService<Reservation> {
       const overlapCheck = await this.reservationRepo.find({
         where: {
           status: 'approved',
-          venue: {id :reservation.venue.id}, // Check only for the same venue
+          venue: { id: reservation.venue.id },
+          id: Not(reservation.id),
         },
       });
 
+      const isTimeOverlap = (fromA: string, toA: string, fromB: string, toB: string): boolean => {
+        return fromA < toB && fromB < toA;
+      };
+
       for (const existingReservation of overlapCheck) {
         for (const [dateStr, periodId] of Object.entries(reservation.temp_periods)) {
-          // Check if the period is already booked in any approved reservation
-          if (existingReservation.periods && existingReservation.periods[dateStr]) {
-            throw new BadRequestException('You cannot accept two reservations in the same period.');
+          const newPeriod = reservation.temp_period_details?.find(p => p.id === periodId);
+
+          const existingPeriodId = existingReservation.periods[dateStr];
+          const existingPeriod = existingReservation.period_details?.find(p => p.id === existingPeriodId);
+
+          if (newPeriod && existingPeriod) {
+            if (isTimeOverlap(newPeriod.from, newPeriod.to, existingPeriod.from, existingPeriod.to)) {
+              throw new BadRequestException(`You cannot accept two reservations in overlapping times on ${dateStr}.`);
+            }
           }
+
         }
       }
 
