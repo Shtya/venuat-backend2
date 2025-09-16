@@ -4,6 +4,11 @@ export enum Role {
 	VENDOR = 'vendor',
 	ADMIN = 'admin',
 }
+export enum ERole {
+	USER = 'user',
+	VENDOR = 'vendor',
+	ADMIN = 'admin',
+}
   
 
 export enum RoleSignup {

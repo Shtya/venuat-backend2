@@ -6,6 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "seed": "ts-node -r tsconfig-paths/register src/seeder.run.ts",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -39,6 +40,7 @@
     "@vendia/serverless-express": "^4.12.6",
     "@vercel/node": "^5.0.2",
     "argon2": "^0.41.1",
+    "axios": "^1.12.2",
     "chokidar": "^3.6.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",

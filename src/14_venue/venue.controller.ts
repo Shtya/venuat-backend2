@@ -177,13 +177,10 @@ export class VenueController {
 
   @Delete('bulk-delete')
   @UseGuards(AuthGuard)
-   async softDeleteMany(@Body() body: { ids: number[] }): Promise<void> {
-    // تأكد من أن الـ ids ليس فارغًا
+  async softDeleteMany(@Body() body: { ids: number[] }): Promise<void> {
     if (!body.ids || body.ids.length === 0) {
       throw new BadRequestException('Please provide an array of IDs');
     }
-
-    console.log(body.ids);
     await this.venueService.softDeleteMany(body.ids);
   }
   @Delete(':id')
@@ -192,6 +189,4 @@ export class VenueController {
   async remove(@Param('id') id: number) {
     return this.venueService.remove(id);
   }
-
-
 }

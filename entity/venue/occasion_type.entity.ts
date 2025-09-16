@@ -17,6 +17,4 @@ export class OccasionType {
 
   @UpdateDateColumn()
   updated_at: Date;
-
-
 }
